@@ -55,7 +55,8 @@ Targets are initial guesses and will be revisited after the feasibility spikes (
 | Relevant vacancies surfaced per week (per active profile) | ≥ 10 |
 | Filtering precision: share of surfaced vacancies the user approves | ≥ 70% |
 | Applications sent per week | ≥ 5 |
-| Invented facts in tailored resumes (skills, experience, dates) | 0 — any case is a defect |
+| Invented experience, roles, dates or achievements in tailored resumes | 0 — any case is a defect |
+| Added skills not highlighted to the user | 0 — any case is a defect |
 | User time spent per week on review and approval | ≤ 30 min |
 | Response rate from employers | Tracked; baseline to be established |
 | Infrastructure cost per month | ≤ $5 |
@@ -65,14 +66,14 @@ Targets are initial guesses and will be revisited after the feasibility spikes (
 
 For each active search profile, on a schedule:
 
-1. **Search** vacancies in configured sources.
+1. **Search** vacancies in configured sources (MVP: LinkedIn and Glassdoor).
 2. **Deduplicate** against previously processed vacancies.
 3. **Hard-filter** obvious mismatches: salary below expectations, wrong location or work format, stack too far from the user's.
 4. **Research the employer** and build a short dossier: what the company does, employee reviews, expected salary, typical interview questions.
 5. **Re-filter** using the dossier (e.g. the realistic salary turns out to be too low).
-6. **Tailor a resume** for each remaining vacancy, based on the user's resume and configured rules.
+6. **Tailor a resume** for each remaining vacancy, based on the user's resume and configured rules. Critical missing skills may be added under the rules in section 9; each addition is highlighted.
 7. **Review** each tailored resume by a separate reviewer agent; send it back for rework if needed.
-8. **Approve** — the user reviews and approves applications (MVP default).
+8. **Approve** — the user reviews and approves applications (MVP default), with added skills clearly highlighted and individually rejectable.
 9. **Send** the application through the appropriate channel (job board form, email, employer site).
 10. **Report** — the user receives a short summary of sent applications and companies.
 
@@ -84,27 +85,34 @@ For each active search profile, on a schedule:
 1. The user lands on a personal page and uploads a resume (.pdf, .txt, .md) and a vacancy requirements file (.pdf, .txt, .md): stack, expected salary, office location or remote, etc.
 2. Each resume + requirements pair is a **search profile**; the user can have up to 3.
 3. A search profile can be created, activated, deactivated and deleted.
-4. For each profile the user sees the history of runs: date, vacancies found, applications sent.
-5. Clicking a run opens a page with a table of vacancies: short dossier, copy of the sent resume, and the sending channel (email, employer site form, etc.).
+4. Vacancies are searched in **two sources: LinkedIn and Glassdoor**.
+5. For each profile the user sees the history of runs: date, vacancies found, applications sent.
+6. Clicking a run opens a page with a table of vacancies: short dossier, copy of the sent resume (with added skills highlighted), and the sending channel (email, employer site form, etc.).
 
 ### Added to the original scope
 
-6. **Approval before sending:** applications wait for the user's approval; auto-send is a later option.
-7. **Company blacklist:** companies that must never receive an application (e.g. the current employer).
-8. **Daily limits:** maximum number of applications and browser actions per day.
-9. **Kill switch:** one action stops all runs and sending immediately.
-10. **Summary email** after each run.
+7. **Approval before sending:** applications wait for the user's approval; auto-send is a later option.
+8. **Added-skill highlighting:** every skill added to a tailored resume is highlighted, with a short note on what to learn before the interview; the user can reject it.
+9. **Company blacklist:** companies that must never receive an application (e.g. the current employer).
+10. **Daily limits:** maximum number of applications and browser actions per day.
+11. **Kill switch:** one action stops all runs and sending immediately.
+12. **Summary email** after each run.
 
 ### Out of scope for MVP
 
-- More than one job source in the first delivery slice (LinkedIn first, Glassdoor later).
+- Sources other than LinkedIn and Glassdoor.
 - Automatic sending without approval.
 - Editing tailored resumes inside the app (the user can reject and re-generate).
 
 ## 9. Product principles
 
 - **Human in the loop.** The system prepares, the user decides. Nothing is sent without approval in MVP.
-- **Never invent facts.** A tailored resume may reorder, emphasize and rephrase, but never add skills, experience or dates that are not in the source resume.
+- **Never invent experience.** A tailored resume may reorder, emphasize and rephrase, but never add roles, projects, achievements, dates or years of experience that are not in the source resume.
+- **Learnable skills only, always highlighted.** A skill missing from the source resume may be added only if all of the following hold:
+  - it is critical for the vacancy (required or strongly preferred);
+  - the user can realistically learn it at an overview level within a couple of days before an interview;
+  - it is listed as a skill only, not attributed to a past role, project or achievement;
+  - it is highlighted to the user, with a short note on what to learn, and can be rejected before sending.
 - **Be a polite guest.** Respect rate limits, act slowly, stop immediately on any sign of account restriction.
 - **Everything is traceable.** Every application can be traced back to the vacancy, the dossier, the exact resume and the channel.
 - **Personal data stays minimal.** Resumes contain personal data; store only what is needed, and allow deleting it.
@@ -131,7 +139,7 @@ For each active search profile, on a schedule:
 |---|---|---|
 | Job board account restricted or banned (automation against ToS) | High — loss of a key job-search channel | **Accepted risk.** Low volume, limits, auto-stop on any warning or challenge, prefer applying via email / employer site |
 | LLM cost higher than expected | Medium | Measure in spike #3; set a monthly LLM cap; deterministic steps where possible; per-run cost tracking |
-| Tailored resume contains invented facts | High — reputational | Reviewer agent, evals, manual approval |
+| Tailored resume contains invented experience, or an added skill the user cannot back up in an interview | High — reputational | Rules in section 9, reviewer agent, evals, highlighting and manual approval |
 | Prompt injection via vacancy text | High — agent acts with a logged-in browser | Separate reading and sending, restricted browser tools, approval before sending |
 | Job board UI changes break flows | Medium | AI-driven navigation, contract checks, failure alerts |
 | Home server (A-1) unavailable | Medium — runs blocked | Detect and report, no retry loops |
@@ -156,9 +164,10 @@ For each active search profile, on a schedule:
 | **Requirements file** | User's criteria for vacancies: stack, salary, location / remote, etc. |
 | **Run** | One execution of the pipeline for one search profile |
 | **Vacancy** | A job posting found in a source |
-| **Source** | Where vacancies come from: LinkedIn, Glassdoor, etc. |
+| **Source** | Where vacancies come from; MVP: LinkedIn and Glassdoor |
 | **Dossier** | Short employer research attached to a vacancy |
 | **Tailored resume** | Resume adapted to a specific vacancy |
+| **Added skill** | A skill not present in the source resume, added under the rules in section 9; always highlighted to the user |
 | **Application** | A tailored resume sent (or prepared to be sent) to an employer |
 | **Channel** | How an application is sent: job board form, email, employer site |
 | **Approval** | The user's confirmation that an application may be sent |
