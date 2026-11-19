@@ -58,7 +58,8 @@ Targets are initial guesses and will be revisited after the feasibility spikes (
 | Invented facts in tailored resumes (skills, experience, dates) | 0 — any case is a defect |
 | User time spent per week on review and approval | ≤ 30 min |
 | Response rate from employers | Tracked; baseline to be established |
-| Cost per run and per month | Within budget (section 10) |
+| Infrastructure cost per month | ≤ $5 |
+| LLM cost per run and per month | Tracked; within the LLM cap set after spike #3 |
 
 ## 7. How it works
 
@@ -110,7 +111,7 @@ For each active search profile, on a schedule:
 
 ## 10. Constraints
 
-- **Budget:** up to $5/month for everything (original goal). Spike #3 will show whether LLM usage fits into this; if not, the budget will be split into infrastructure (≤ $5/month) and an explicit LLM cap.
+- **Budget:** up to $5/month for hosting and infrastructure. LLM usage (tokens) is **not** included and is tracked separately; an explicit monthly LLM cap will be set after spike #3.
 - **Hosting:** cloud, free tier or minimal cost. GCP is preferred (account exists); other providers and combinations may be considered.
 - **Models:** Claude models initially, chosen per task; the provider may change in the future, so the design must not be locked to one vendor.
 - **UI:** simple web UI, responsive for laptop and mobile browsers.
@@ -129,7 +130,7 @@ For each active search profile, on a schedule:
 | Risk | Impact | Mitigation |
 |---|---|---|
 | Job board account restricted or banned (automation against ToS) | High — loss of a key job-search channel | **Accepted risk.** Low volume, limits, auto-stop on any warning or challenge, prefer applying via email / employer site |
-| LLM cost exceeds budget | Medium | Measure in spike #3; deterministic steps where possible; per-run cost tracking |
+| LLM cost higher than expected | Medium | Measure in spike #3; set a monthly LLM cap; deterministic steps where possible; per-run cost tracking |
 | Tailored resume contains invented facts | High — reputational | Reviewer agent, evals, manual approval |
 | Prompt injection via vacancy text | High — agent acts with a logged-in browser | Separate reading and sending, restricted browser tools, approval before sending |
 | Job board UI changes break flows | Medium | AI-driven navigation, contract checks, failure alerts |
@@ -139,7 +140,7 @@ For each active search profile, on a schedule:
 
 ## 13. Open questions
 
-1. Does the $5/month budget include LLM usage, or only infrastructure? (spike #3)
+1. What is a reasonable monthly LLM cap? (spike #3)
 2. Which application channels can be automated reliably: Easy Apply, email, employer sites? (spike #4)
 3. Are "direct referrals" and general web search (e.g. Google) real sources for MVP, or later?
 4. Where do resume tailoring rules live: inside the requirements file, or as separate per-profile settings?
