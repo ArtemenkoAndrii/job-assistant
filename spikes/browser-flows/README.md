@@ -8,7 +8,9 @@ The kit is reusable later for recording MCP fixtures (#24).
 
 | File | Purpose |
 |---|---|
-| `.mcp.json` | Connects Claude Code to A-1; URL and Cloudflare Access token come from environment variables |
+| `.mcp.json` | Connects Claude Code to A-1 and sends the Cloudflare Access service-token headers (`CF-Access-Client-Id`, `CF-Access-Client-Secret`) from environment variables |
+| `set-credentials.ps1` | Asks for the MCP URL, Client Id and Client Secret and sets them for the current terminal only |
+| `check-connection.ps1` | Verifies that Cloudflare Access accepts the token and the MCP server answers, before starting Claude |
 | `.claude/settings.json` | Read-only browser tools allowed; clicks and typing ask you first; JavaScript execution, Bash and web access denied |
 | `CLAUDE.md` | Safety rules for every session: never submit, never change the account, stop on any challenge |
 | `prompts/` | One prompt per scenario |
@@ -19,6 +21,18 @@ The kit is reusable later for recording MCP fixtures (#24).
 - Claude Code installed on your machine.
 - Python 3 (`winget install Python.Python.3.12` on Windows).
 - A-1 is up and its LinkedIn and Glassdoor sessions are logged in.
+- A Cloudflare Access **service token** for the A-1 application (see below).
+
+## Cloudflare Access service token
+
+A-1 sits behind Cloudflare Access, so every request must carry two headers: `CF-Access-Client-Id` and `CF-Access-Client-Secret`. `.mcp.json` adds them automatically from environment variables.
+
+If you don't have a token yet:
+
+1. Cloudflare Zero Trust → **Access → Service credentials → Service Tokens → Create Service Token**. Copy the Client Id and Client Secret (the secret is shown only once). Menu names in the dashboard may differ slightly.
+2. In the Access application for your MCP hostname, add a policy with action **Service Auth** that includes this service token. A policy with action *Allow* is meant for people signing in and will redirect the token to a login page.
+
+Treat the secret like a password: don't paste it into files, chats or commits.
 
 ## 1. Copy the kit out of the repo
 
@@ -32,14 +46,26 @@ cd C:\spikes\browser-flows
 ## 2. Set credentials for this terminal only
 
 ```powershell
-$env:A1_MCP_URL = "https://<your-mcp-host>/mcp"
-$env:CF_ACCESS_CLIENT_ID = "<client id>"
-$env:CF_ACCESS_CLIENT_SECRET = "<client secret>"
+. .\set-credentials.ps1
 ```
 
-Do not put them in files.
+Note the leading dot: the script must be dot-sourced so the variables stay in your terminal. It asks for the MCP URL (ending with `/mcp`), Client Id and Client Secret (hidden input). Nothing is written to disk or to the PowerShell history. Repeat in every new terminal.
+
+If PowerShell blocks scripts, allow them for this terminal: `Set-ExecutionPolicy -Scope Process Bypass`.
 
 ## 3. Check the connection
+
+```powershell
+.\check-connection.ps1
+```
+
+| Result | Meaning |
+|---|---|
+| `OK` | Token accepted, MCP server answered — continue |
+| Cloudflare Access did not accept the token | Wrong Id / Secret, or the Access policy is not *Service Auth* / doesn't include the token |
+| 401 / 403 not from Cloudflare | Playwright MCP's host check rejected the hostname — start it on A-1 with `--allowed-hosts <your-mcp-host>` |
+
+Then start Claude Code in the same terminal:
 
 ```powershell
 claude
@@ -54,7 +80,7 @@ Pick the model you expect to use at runtime with `/model` and keep it for all sc
 For each prompt in `prompts/`, in order:
 
 1. Edit the placeholders (search criteria, URLs).
-2. Start a fresh session (`claude`), paste the prompt.
+2. Start a fresh session (`claude`) in the same terminal, paste the prompt.
 3. Approve or reject each click / typing step. **Reject anything that would submit or change your account.**
 4. When done, `/exit` and record the session:
 
