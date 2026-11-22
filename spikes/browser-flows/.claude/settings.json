@@ -3,6 +3,7 @@
     "allow": [
       "mcp__browser__browser_navigate",
       "mcp__browser__browser_navigate_back",
+      "mcp__browser__browser_find",
       "mcp__browser__browser_snapshot",
       "mcp__browser__browser_take_screenshot",
       "mcp__browser__browser_wait_for",
