@@ -1,0 +1,27 @@
+{
+  "_comment": "Volumes per run of ONE search profile. Edit to match reality; the report is recomputed without new API calls via --report-only.",
+  "search_pages_per_run": 2,
+  "vacancies_detailed_per_run": 25,
+  "companies_researched_per_run": 8,
+  "dossier_pages_per_company": 3,
+  "vacancies_tailored_per_run": 5,
+  "review_rounds_per_resume": 1.5,
+  "nav_fallback": {
+    "_comment": "LLM-driven browsing when a deterministic step fails (e.g. a changed page). Estimated, not measured.",
+    "share_of_vacancies": 0.1,
+    "turns": 5,
+    "context_tokens_per_turn": 15000,
+    "output_tokens_per_turn": 200,
+    "cached_share_after_first_turn": 0.8
+  },
+  "mixes": {
+    "all-haiku": {"default": "haiku"},
+    "all-sonnet": {"default": "sonnet"},
+    "mixed": {"default": "haiku", "tailor": "sonnet", "review": "sonnet", "nav_fallback": "sonnet"}
+  },
+  "scenarios": [
+    {"name": "light: 1 profile, 3 runs/week", "profiles": 1, "runs_per_week": 3},
+    {"name": "daily: 1 profile, 7 runs/week", "profiles": 1, "runs_per_week": 7},
+    {"name": "max: 3 profiles, 7 runs/week", "profiles": 3, "runs_per_week": 7}
+  ]
+}
