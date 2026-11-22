@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__browser__browser_navigate",
+      "mcp__browser__browser_navigate_back",
+      "mcp__browser__browser_find",
+      "mcp__browser__browser_snapshot",
+      "mcp__browser__browser_take_screenshot",
+      "mcp__browser__browser_wait_for",
+      "mcp__browser__browser_tabs",
+      "mcp__browser__browser_hover",
+      "Read(./prompts/**)",
+      "Edit(./notes/**)"
+    ],
+    "ask": [
+      "mcp__browser__browser_click",
+      "mcp__browser__browser_type",
+      "mcp__browser__browser_fill_form",
+      "mcp__browser__browser_select_option",
+      "mcp__browser__browser_press_key",
+      "mcp__browser__browser_file_upload",
+      "mcp__browser__browser_drag",
+      "mcp__browser__browser_handle_dialog"
+    ],
+    "deny": [
+      "mcp__browser__browser_evaluate",
+      "mcp__browser__browser_run_code*",
+      "mcp__browser__browser_network_request*",
+      "mcp__browser__browser_console_messages",
+      "Bash",
+      "WebFetch",
+      "WebSearch",
+      "Read(./.env*)"
+    ]
+  }
+}
