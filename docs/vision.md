@@ -60,7 +60,7 @@ Searching for a job is repetitive and time-consuming:
 | User time per package (review + manual submission) | ≤ 5 min |
 | Response rate from employers | Tracked; baseline to be established |
 | Infrastructure cost per month | ≤ $5 |
-| LLM cost per month | ≤ $10 (cap); expected ~$2–4 for one profile (spike #3) |
+| LLM cost per month | ≤ $10 (cap); expected ~$1 for one profile on the weekly schedule (spike #3, NFR-C5) |
 
 ## 7. How it works
 
@@ -158,11 +158,8 @@ The browser is used **read only**: the system searches and reads vacancies and e
 ## 13. Open questions
 
 1. Are "direct referrals" and general web search (e.g. Google) vacancy sources for a later version?
-2. How often should runs be scheduled by default (daily, several times a week)?
-3. How long are runs, dossiers and packages retained?
-4. What are the default browsing limits per run?
 
-Answered: LLM cap ($10/month, #3); which channels can be automated and what the MVP does (prepare packages, manual submission, #4); dossier sources (LinkedIn, Glassdoor, company website, web search); where application data and tailoring rules live (the two profile files; fixed system rules plus per-profile tailoring notes — [use cases](requirements/use-cases.md) #6).
+Answered: LLM cap ($10/month, #3); which channels can be automated and what the MVP does (prepare packages, manual submission, #4); dossier sources (LinkedIn, Glassdoor, company website, web search); where application data and tailoring rules live (the two profile files; fixed system rules plus per-profile tailoring notes — [use cases](requirements/use-cases.md) #6); default schedule, browsing limits, retention and file size ([NFR](requirements/nfr.md) #7).
 
 ## 14. Glossary
 
@@ -190,5 +187,6 @@ Answered: LLM cap ($10/month, #3); which channels can be automated and what the 
 
 - [The AI-native SDLC playbook](https://claude.com/resources/articles/the-ai-native-sdlc-playbook)
 - [Use cases and story map](requirements/use-cases.md)
+- [Non-functional requirements](requirements/nfr.md)
 - Spikes: [browser flows](spikes/browser-flows.md), [LLM cost](spikes/llm-cost.md), [application channels](spikes/application-channels.md)
 - Roadmap: GitHub milestones P0–P5
