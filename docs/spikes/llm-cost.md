@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Issue** | #3 |
-| **Status** | Text steps measured; browsing tasks: first run, re-run pending |
+| **Status** | Done |
 | **Date** | 2026-11-23 |
 | **How to run** | [spikes/llm-cost/README.md](../../spikes/llm-cost/README.md) |
 
@@ -122,12 +122,51 @@ Findings:
 - **Reported input tokens look too low** (2–10k for 7–10 tool calls on pages that are 5–8k tokens each in spike #2). Either the agent used small targeted reads, or the usage does not include the tool results. The report now shows the size of tool outputs next to input tokens to tell the two apart. **Until then, browsing cost is not trusted.**
 - **Speed:** 1.5–2.5 minutes per vacancy through OpenAI → Cloudflare → A-1; 25 vacancies ≈ 40–60 minutes per run. Acceptable for a scheduled background job.
 
+### Browsing tasks, second live run (2026-11-23 15:31, caps raised)
+
+| Task | Luna | Terra |
+|---|---|---|
+| LinkedIn search | failed — page went blank | failed — page went blank |
+| LinkedIn vacancy 1 | **done**, 6 calls, 14.4k tokens, $0.0016 | failed — page went blank |
+| LinkedIn vacancy 2 | failed — details pane did not load | **done**, 9 calls, 8.0k tokens, $0.0097 |
+| Glassdoor company | failed — tab switched to about:blank | **done**, 12 calls, 8.6k tokens, $0.0111 |
+
+Findings:
+
+- **Token accounting is correct.** Tool output size matches input tokens (e.g. 50k characters of page text ≈ 12.5k tokens vs 14.4k reported). The cost numbers can be trusted.
+- **No task hit the cap any more.** The remaining failures are not about the models: in 5 of 8 tasks the agent reported that **the page became blank or switched to about:blank** between its own tool calls — on both LinkedIn and Glassdoor, so the cause is the browser session, not a site block.
+- **Likely cause:** Playwright MCP creates a **new browser context per HTTP client** unless started with `--shared-browser-context`. When OpenAI's servers call A-1 through separate connections, a navigation and the following snapshot can land in different contexts. Spike #2 (Claude Code, one long connection) never saw this. To be confirmed on A-1.
+- When the session held, **Luna completed a vacancy extraction in 6 calls for $0.0016** — 6× cheaper than Terra for the same task.
+
 ### Per run and per month (browsing + text steps)
 
-| Browsing model | Writing | Per run | Light | Daily | Max |
+Browsing cost from the successful tasks of the second run; text steps from the 15:05 run. One profile.
+
+| Browsing | Writing | Per run | Light (3 runs/week) | Daily | Max (3 profiles daily) |
 |---|---|---|---|---|---|
-| | | | | | |
+| **Luna** | **Luna writes, Sol reviews** | **$0.13** | **$1.69/mo** | **$3.94/mo** | **$11.81/mo** |
+| Luna | Sol writes and reviews | $0.21 | $2.75/mo | $6.42/mo | $19.27/mo |
+| Terra | Luna writes, Sol reviews | $0.35 | $4.60/mo | $10.72/mo | $32.17/mo |
+| Terra | Sol writes and reviews | $0.44 | $5.66/mo | $13.21/mo | $39.63/mo |
 
 ## Recommendation
 
-<Model per step, reasoning effort, monthly LLM cap, what to re-measure once evals (#25) exist.>
+**Models per step (MVP):**
+
+| Step | Model | Reasoning effort | Why |
+|---|---|---|---|
+| Browsing tasks (search, vacancy, company) | GPT-6 Luna | low | Completed the task when the session held, 6× cheaper than Terra; re-check success rate once sessions are fixed |
+| Filter, dossier extraction | GPT-6 Luna | low | Same results as Terra and Sol at 1/10–1/20 of the cost |
+| Resume tailoring | GPT-6 Luna | medium | Compliant with the added-skill rule in both runs; Terra over-added skills under pressure |
+| Resume review | GPT-6.2 Sol | medium | The only reviewer that checked the added-skill rules; it is the safety net for "never invent experience" |
+
+**Expected cost:** ~$0.13 per run of one profile → **~$1.7/month** at 3 runs a week, **~$4/month** daily, ~$12/month for 3 profiles daily.
+
+**LLM cap:** **$10/month**, with an alert at $5. Covers daily runs of one profile with 2.5× margin and leaves room for retries and evals; the current $10 balance lasts 2–5 months.
+
+**Not settled by this spike — moves to #19 / #20:**
+
+- **Browser session stability through OpenAI's hosted MCP** (pages going blank). First check: start Playwright MCP on A-1 with `--shared-browser-context`. If that does not help, the agent loop must run in our code with one persistent MCP session (still OpenAI models, our own MCP client) — this also fits the `BrowserGateway` design.
+- **Success rate of Luna as a browser agent** — to be measured once sessions are stable; Terra is the fallback model for browsing (~$0.35 per run).
+- **Latency:** 15–140 s per task through OpenAI → Cloudflare → A-1; a run takes 30–60 minutes. Fine for scheduled runs.
+- **Re-measure with evals (#25)** once the golden dataset exists — single-call quality findings here are indicative.
