@@ -81,9 +81,9 @@
     "vacancy_tasks_per_run": 25,
     "company_tasks_per_run": 8,
     "max_tool_calls": {
-      "search": 30,
-      "vacancy": 8,
-      "company": 10
+      "search": 40,
+      "vacancy": 20,
+      "company": 20
     },
     "writing_mixes": {
       "luna writes, sol reviews": {

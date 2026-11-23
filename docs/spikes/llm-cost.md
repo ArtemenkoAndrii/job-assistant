@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Issue** | #3 |
-| **Status** | Text steps measured; browsing tasks pending |
+| **Status** | Text steps measured; browsing tasks: first run, re-run pending |
 | **Date** | 2026-11-23 |
 | **How to run** | [spikes/llm-cost/README.md](../../spikes/llm-cost/README.md) |
 
@@ -97,13 +97,30 @@ Takeaways:
 - **The reviewer is the safety net for the "never invent experience" rule**, so it is worth paying for: Luna writes, Sol reviews costs the same as Luna + Terra (~$0.23 per run).
 - Tailoring must be re-checked on a **matching** vacancy (`--tailor-vacancy`), and later continuously by evals (#25).
 
-### Browsing tasks (live, through A-1)
+### Tailoring on a matching vacancy (run 2026-11-23 15:05, `--tailor-vacancy`)
 
-| Task | Luna: success / tool calls / $ | Terra: success / tool calls / $ |
+A backend platform role close to the owner's profile. Cost per call was the same as before (Luna $0.0012, Terra $0.0096, Sol $0.0176 for tailor).
+
+- **All three models added no skills** and invented nothing; all kept the real achievements and adjusted emphasis. Terra's tailoring was the closest to Luna's; Sol restructured more (merged sections). With a matching vacancy, Terra did not over-add — its earlier problem shows up only under pressure from a mismatched vacancy.
+- **All three reviewers answered "rework" because of missing requirements the original resume cannot support** (multi-region, third-party vendor integrations). That is a candidate–vacancy gap, not a resume defect; with this behaviour the tailor ↔ review loop would never converge. **Fixed in the review prompt:** the verdict judges only rule compliance and tailoring quality; gaps go to a separate `fit_gaps` list.
+
+### Browsing tasks, first live run (2026-11-23 15:14, `agent_tasks.py`)
+
+| Task | Luna | Terra |
 |---|---|---|
-| LinkedIn search | | |
-| LinkedIn vacancy | | |
-| Glassdoor company | | |
+| LinkedIn search | failed, 9 calls | failed, 7 calls |
+| LinkedIn vacancy 1 | failed, 8 calls (cap) | done, 8 calls (cap) |
+| LinkedIn vacancy 2 | done, 8 calls (cap) | failed, 8 calls (cap) |
+| Glassdoor company | done, 10 calls (cap) | done, 10 calls (cap) |
+| Avg cost per task | $0.0005–0.0012 | $0.0033–0.0062 |
+| Time per task | 24–150 s | 84–147 s |
+
+Findings:
+
+- **The tool-call caps were too low**: every vacancy and company task used exactly the cap (8 / 10). Failures here say more about the cap than about the models. Caps raised to 20 / 20 / 40.
+- **Both models failed the search task** — reason to be diagnosed from the task notes (now shown in the report).
+- **Reported input tokens look too low** (2–10k for 7–10 tool calls on pages that are 5–8k tokens each in spike #2). Either the agent used small targeted reads, or the usage does not include the tool results. The report now shows the size of tool outputs next to input tokens to tell the two apart. **Until then, browsing cost is not trusted.**
+- **Speed:** 1.5–2.5 minutes per vacancy through OpenAI → Cloudflare → A-1; 25 vacancies ≈ 40–60 minutes per run. Acceptable for a scheduled background job.
 
 ### Per run and per month (browsing + text steps)
 

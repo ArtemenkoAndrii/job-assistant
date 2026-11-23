@@ -66,11 +66,24 @@ def run_task(model_key: str, task: dict, A: dict, effort: str) -> dict:
     items = getattr(resp, "output", []) or []
     calls = [i for i in items if getattr(i, "type", "") == "mcp_call"]
     usage = openai_usage(resp.usage)
+    tool_chars = sum(len(str(getattr(c, "output", "") or "")) for c in calls)
+    cap = A["agent"]["max_tool_calls"][task["kind"]]
     return {"model": model_key, "task": task["id"], "kind": task["kind"], "status": parse_status(resp.output_text),
             "usage": usage, "cost_usd": price(model_key, usage), "tool_calls": len(calls),
+            "hit_cap": len(calls) >= cap, "tool_output_chars": tool_chars,
             "tool_errors": sum(1 for c in calls if getattr(c, "error", None)),
             "tools_used": [getattr(c, "name", "?") for c in calls],
+            "tool_errors_text": [str(getattr(c, "error", ""))[:200] for c in calls if getattr(c, "error", None)],
             "seconds": round(time.time() - started, 1), "output": resp.output_text}
+
+
+def notes_of(r: dict) -> str:
+    m = re.search(r"\{.*\}", r.get("output") or "", re.S)
+    try:
+        note = json.loads(m.group(0)).get("notes", "") if m else ""
+    except json.JSONDecodeError:
+        note = ""
+    return str(note or r.get("error", "")).replace("|", "/").replace("\n", " ")[:160]
 
 
 def write_report(run_dir: Path, measure_dir) -> None:
@@ -81,20 +94,23 @@ def write_report(run_dir: Path, measure_dir) -> None:
          "One task = one Responses API request with A-1 as a remote MCP server. Cost includes reasoning tokens "
          "and the tool list sent to the model.", "",
          "## Per task", "",
-         "| Model | Task | Status | Tool calls (errors) | Input tokens | Output (reasoning) | Cost | Seconds |",
-         "|---|---|---|---|---|---|---|---|"]
+         "| Model | Task | Status | Tool calls (errors) | Hit cap | Tool output chars | Input tokens | Output (reasoning) | Cost | Seconds | Notes |",
+         "|---|---|---|---|---|---|---|---|---|---|---|"]
     by = {}
     for r in results:
         u = r.get("usage", {"input": 0, "cached": 0, "output": 0, "reasoning": 0})
         L.append(f"| {r['model']} | {r['task']} | {r['status']} | {r['tool_calls']} ({r['tool_errors']}) | "
+                 f"{'yes' if r.get('hit_cap') else ''} | {r.get('tool_output_chars', 0):,} | "
                  f"{u['input'] + u['cached']:,} | {u['output']:,} ({u.get('reasoning', 0):,}) | "
-                 f"${r['cost_usd']:.4f} | {r['seconds']} |")
+                 f"${r['cost_usd']:.4f} | {r['seconds']} | {notes_of(r)} |")
         k = by.setdefault(r["model"], {}).setdefault(r["kind"], {"n": 0, "ok": 0, "cost": 0.0})
         k["n"] += 1
         k["ok"] += r["status"] == "done"
         k["cost"] += r["cost_usd"]
 
-    L += ["", "## Per model", "", "| Model | Kind | Success | Avg cost per task |", "|---|---|---|---|"]
+    L += ["", "Check: page text returned by tools is roughly 4 characters per token. If *Input tokens* is far below "
+          "*Tool output chars* / 4, the reported usage does not include the tool results and the cost is understated.",
+          "", "## Per model", "", "| Model | Kind | Success | Avg cost per task |", "|---|---|---|---|"]
     nav = {}
     for m, kinds in by.items():
         for kind, k in kinds.items():
