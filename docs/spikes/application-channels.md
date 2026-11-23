@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Issue** | #4 |
-| **Status** | Draft — channel census pending |
+| **Status** | Done — decision taken 2026-11-23 |
 | **Date** | 2026-11-23 |
-| **Sources** | Spike #2 dry-run of 4 application flows ([browser-flows.md](browser-flows.md) §4), spike #2 search data, ATS vendor documentation; channel census (scenario 05) to be added |
+| **Sources** | Spike #2 dry-run of 4 application flows ([browser-flows.md](browser-flows.md) §4), spike #2 search data, ATS vendor documentation |
 
 ## Goal
 
@@ -55,34 +55,37 @@ Every channel that got past step 1 asked for data a resume does not contain. The
 
 **Screening answers:** structured questions (selects, yes/no) can be answered from profile fields; free-text questions need the LLM and the user's approval. The approval screen must show every answer, not only the resume.
 
-## Recommendation for MVP (draft, to be confirmed by the census)
+## Decision for MVP (2026-11-23)
 
-| Tier | Channels | What the system does |
-|---|---|---|
-| **Automated, with approval** | LinkedIn Easy Apply | Fills the modal from profile fields and approved answers, uploads the tailored PDF, stops for approval, submits |
-| **Prepared, user applies** | Single-page ATS (Ashby, Greenhouse, Lever), custom careers sites, Glassdoor / Indeed | Builds the application package — tailored resume PDF, answers to the questions found on the form, cover text — and gives the user the link; the user submits. Tracked as "prepared" in the run history |
-| **Automated, when present** | Email | Sends the package via the email channel (ADR #21). Rare, so not a priority |
-| **Out of scope** | Workday and any site that requires creating an account | Listed in the run results with the link only |
+**Sources vs channels.** LinkedIn and Glassdoor are the **sources**: where the system finds vacancies and employer information (reviews, pros and cons, salary levels, interview difficulty). A **channel** is how one applies to a particular vacancy, and it is chosen by the employer: Easy Apply / Glassdoor quick apply inside the platform, or a redirect to the employer's ATS or careers site.
 
-Why this split:
+**In the MVP the system never submits applications.** For every vacancy that passes all filters it prepares an **application package**, and the user always applies manually:
 
-- **Easy Apply is the only channel that is both common and uniform**: one flow, no extra accounts, no CAPTCHA seen. Automating it covers roughly half of LinkedIn vacancies (to be confirmed).
-- **External ATS forms differ per employer, often ask essay questions and can show a CAPTCHA.** Preparing the package gives most of the value (tailoring and answers are the hard part) without fighting each form. Automating Ashby and Greenhouse is a good post-MVP step, since they are single-page and need no account.
-- **Consent checkboxes and essay answers are statements made in the user's name**, which is one more reason to keep the user in the loop for non-uniform channels.
+| Package item | Content |
+|---|---|
+| Tailored resume | PDF, built under the vision rules (no invented experience, added skills highlighted) and approved by the reviewer agent |
+| Employer dossier | What the company does, rating, pros and cons, salary levels, interview difficulty and questions (LinkedIn, Glassdoor) |
+| Answers | Answers to the typical screening questions, built from profile fields (phone, salary expectation, notice period, work permit, location, years per technology, languages) plus a short cover note |
+| Link and channel | Where to apply, and how: Easy Apply, Glassdoor quick apply, employer ATS (vendor) or careers site |
 
-**Impact on the vision (#5):** "send to the employer" becomes "send automatically where the channel allows (Easy Apply, email); otherwise prepare the package for one-click manual submission". The run history needs a status per vacancy: *sent*, *prepared*, *skipped (channel not supported)*.
+The run history shows a status per vacancy, for example *prepared*, *applied* (marked by the user), *skipped*.
 
-## Channel census
+**Why:**
 
-<To fill from `notes/05-channel-census.md`: share of Easy Apply, external ATS by vendor, custom sites and email among ~25 LinkedIn and ~10 Glassdoor vacancies.>
+- One flow for every channel: no per-ATS forms, CAPTCHAs, account creation (Workday) or essay answers submitted in the user's name without review.
+- **No account risk from submissions** — the browser only reads.
+- **Resume upload to A-1 is not needed in the MVP**: the PDF goes to the user, not into a browser form (relaxes ADR #18).
+- The value of the product — finding, filtering, researching, tailoring — is kept; the manual step is a few clicks per vacancy.
 
-| Channel | LinkedIn (n=) | Glassdoor (n=) |
-|---|---|---|
-| Easy Apply / quick apply | | |
-| Greenhouse | | |
-| Ashby | | |
-| Lever | | |
-| Workday | | |
-| Other ATS | | |
-| Custom site | | |
-| Email in description | | |
+**Not in the MVP:** reading the actual questions of each application form. Easy Apply questions appear only after opening the form (spike #2), which is an interaction with the user's account; answers to typical questions cover most of them. Revisit together with automated sending.
+
+**Post-MVP options** (for the review in #38 and the auto-send slice #32):
+
+| Next step | Why first |
+|---|---|
+| Automate LinkedIn Easy Apply (with approval) | Common and uniform; no extra accounts |
+| Automate single-page ATS (Ashby, Greenhouse, Lever) | No account; but long free-text questions and a CAPTCHA fallback |
+| Email channel | Trivial, but rare |
+| Workday, sites requiring an account | Keep manual |
+
+A channel census (`spikes/browser-flows/prompts/05-channel-census.md`, read-only) is ready for when automated sending is reconsidered; it measures how often each channel occurs. It is not needed for the MVP decision.
