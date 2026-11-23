@@ -8,6 +8,7 @@ Usage:
     python measure.py --resume cv.md --requirements req.md --dry-run
     python measure.py --resume cv.md --requirements req.md                # luna,terra,sol
     python measure.py --resume cv.md --requirements req.md --models luna,sol
+    python measure.py ... --tailor-vacancy vacancy.txt   # tailor/review against a matching vacancy
     python measure.py --report-only results/<run>        # recompute after editing assumptions.json
 
 Needs: OPENAI_API_KEY and `pip install openai` (ANTHROPIC_API_KEY and `pip install anthropic`
@@ -134,7 +135,8 @@ def complete(model_key: str, system: str, user: str, max_output: int, effort: st
                   "output": u.output_tokens, "reasoning": 0}
 
 
-def run_model(model_key: str, inputs: dict, resume: str, requirements: str, efforts: dict) -> list:
+def run_model(model_key: str, inputs: dict, resume: str, requirements: str, efforts: dict,
+              tailor_vacancy: str = None) -> list:
     out = []
 
     def do(step, user):
@@ -154,8 +156,9 @@ def run_model(model_key: str, inputs: dict, resume: str, requirements: str, effo
         do("filter", f"<requirements>\n{requirements}\n</requirements>\n<vacancy>\n{v}\n</vacancy>")
     for c in inputs["companies"]:
         do("dossier", c["result"])
-    tailored = do("tailor", f"<resume>\n{resume}\n</resume>\n<vacancy>\n{vacancies[0]}\n</vacancy>")
-    do("review", f"<original_resume>\n{resume}\n</original_resume>\n<vacancy>\n{vacancies[0]}\n</vacancy>\n"
+    target = tailor_vacancy or vacancies[0]
+    tailored = do("tailor", f"<resume>\n{resume}\n</resume>\n<vacancy>\n{target}\n</vacancy>")
+    do("review", f"<original_resume>\n{resume}\n</original_resume>\n<vacancy>\n{target}\n</vacancy>\n"
                  f"<tailored_resume>\n{tailored}\n</tailored_resume>")
     return out
 
@@ -266,6 +269,7 @@ def main() -> None:
     ap.add_argument("--resume", type=Path)
     ap.add_argument("--requirements", type=Path)
     ap.add_argument("--models", default="luna,terra,sol")
+    ap.add_argument("--tailor-vacancy", type=Path, help="vacancy text to tailor the resume for (default: first recorded vacancy)")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--report-only", type=Path)
     ap.add_argument("--list-models", action="store_true")
@@ -286,6 +290,7 @@ def main() -> None:
 
     inputs = pick_inputs(args.recordings)
     resume, requirements = read_text(args.resume), read_text(args.requirements)
+    tailor_vacancy = read_text(args.tailor_vacancy) if args.tailor_vacancy else None
     print(f"Inputs: list page {inputs['list']['result_chars']:,} chars; "
           f"vacancies {[c['result_chars'] for c in inputs['vacancies']]}; "
           f"company pages {[c['result_chars'] for c in inputs['companies']]}; "
@@ -299,7 +304,7 @@ def main() -> None:
     calls = []
     for m in models:
         print(f"== {m}")
-        calls += run_model(m, inputs, resume, requirements, efforts)
+        calls += run_model(m, inputs, resume, requirements, efforts, tailor_vacancy)
         (run_dir / "calls.json").write_text(json.dumps(calls, ensure_ascii=False, indent=1), encoding="utf-8")
     write_report(run_dir)
     print(f"Spent on this measurement: ${sum(c['cost_usd'] for c in calls):.3f}")

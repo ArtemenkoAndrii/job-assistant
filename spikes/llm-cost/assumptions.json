@@ -24,6 +24,11 @@
       "review": "terra",
       "nav_fallback": "terra"
     },
+    "luna + sol review": {
+      "default": "luna",
+      "review": "sol",
+      "nav_fallback": "terra"
+    },
     "luna + sol": {
       "default": "luna",
       "tailor": "sol",
@@ -81,6 +86,11 @@
       "company": 10
     },
     "writing_mixes": {
+      "luna writes, sol reviews": {
+        "filter": "luna",
+        "tailor": "luna",
+        "review": "sol"
+      },
       "terra writes": {
         "filter": "luna",
         "tailor": "terra",

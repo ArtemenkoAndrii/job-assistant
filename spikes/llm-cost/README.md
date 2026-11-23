@@ -47,6 +47,8 @@ python measure.py --resume C:\path\resume.md --requirements C:\path\requirements
 
 Result: `results\<timestamp>\report.md` and `calls.json` (with each model's output — compare the tailored resumes).
 
+To judge tailoring quality, tailor against a vacancy that matches your requirements: save its text to a file and add `--tailor-vacancy C:\path\vacancy.txt` (otherwise the first recorded vacancy is used, which may not match).
+
 ## 2. Browsing tasks (live, through A-1)
 
 1. Fill in `tasks.json`: two real LinkedIn job ids and one Glassdoor company reviews URL (you can take them from spike #2 notes). Adjust the search URL keywords if you like.
