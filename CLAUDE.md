@@ -1,0 +1,54 @@
+# Job Finder — agent guide
+
+AI assistant that finds vacancies on LinkedIn and Glassdoor, researches employers and prepares an application package per vacancy; the user applies manually. Start with [docs/vision.md](docs/vision.md).
+
+## Where things are
+
+| Path | What |
+|---|---|
+| `docs/vision.md` | Product vision — scope, principles, constraints |
+| `docs/requirements/` | Use cases (UC-NN) and non-functional requirements (NFR-XN) |
+| `docs/adr/` | Architecture decisions — read the index before designing anything |
+| `docs/changes/<issue>-<slug>/` | intent.md, spec.md, plan.md per change ([how](docs/changes/README.md)) |
+| `docs/templates/` | Templates for intent, spec, plan |
+| `docs/spikes/`, `spikes/` | Feasibility findings and throwaway spike kits — not product code |
+| `.devcontainer/` | The only supported dev environment ([ADR-0002](docs/adr/0002-dev-environment.md)) |
+
+## Commands
+
+No product code yet — build, test and lint commands are added here with the stack decision. Each must be one command that exits non-zero on failure.
+
+## Workflow
+
+1. Work starts from a GitHub issue; branch name `<issue>-<short-slug>`.
+2. Product changes go **intent → spec → plan → code**. Plan in plan mode first; do not write code before the plan is approved.
+3. Open a PR with `Closes #N`; the owner reviews and merges. Never push to `main`.
+4. If the implementation diverges from `plan.md`, update it in the same commit.
+
+## Accepted decisions (ADR index)
+
+- ADR-0001 Record architecture decisions
+- ADR-0002 Development environment and Claude Code isolation
+
+A spec must not contradict an accepted ADR; if it has to, stop and propose a new ADR.
+
+## Rules
+
+- **Never touch real job boards** from tests, CI or the dev container: use recorded pages and fakes. The Browser MCP endpoint (A-1) is reachable only from runtime and spike kits.
+- **The repo is public:** no secrets, no personal data (resumes, names, contacts, recorded pages with personal data). Secrets live in a secret manager.
+- **Never invent experience** in anything that generates resumes; added skills follow vision §9.
+- Browsing is **read only**: the product never fills or submits forms.
+- Prefer the simplest thing that meets the spec; respect the budgets (NFR-C1, NFR-C2).
+
+## Before reporting a task as done
+
+- [ ] Build, tests and lint pass (paste the output).
+- [ ] Every acceptance criterion in `spec.md` has evidence (see `plan.md` → Proof).
+- [ ] `plan.md` matches what was built.
+- [ ] No secrets or personal data in the diff.
+- [ ] Docs touched by the change are updated (ADR index, use cases, NFR, README).
+
+## Known mistakes
+
+<!-- When an agent makes the same mistake twice, add the correction here. -->
+- None yet.
