@@ -4,7 +4,7 @@ Development happens in a dev container ([ADR-0002](adr/0002-dev-environment.md))
 
 ## One-time setup (Windows)
 
-1. Install **Docker Desktop** (it uses WSL2 under the hood) and start it.
+1. Install a **container runtime** that works with Dev Containers — any of Docker Desktop, Rancher Desktop, Podman Desktop, or Docker Engine in your own WSL distribution. (Or skip local setup and use GitHub Codespaces.)
 2. Install an IDE with Dev Containers support:
    - **VS Code** + the *Dev Containers* extension (most mature), or
    - a **JetBrains IDE** with Dev Containers support.
