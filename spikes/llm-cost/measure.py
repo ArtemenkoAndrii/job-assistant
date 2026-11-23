@@ -1,15 +1,17 @@
 """Measure LLM cost per pipeline step on real page snapshots from spike #2.
 
-Runs each step of a lean pipeline (one short, focused LLM call per step) on
-recorded snapshots, for several models, and projects cost per run and per month.
+Runs each step of the pipeline (one short, focused LLM call per step) on recorded
+snapshots, for several models, and projects cost per run and per month.
 
 Usage:
-    python measure.py --resume my-resume.md --requirements my-requirements.md
-    python measure.py ... --models haiku,sonnet,opus
-    python measure.py ... --dry-run        # show chosen inputs and sizes, no API calls
-    python measure.py --report-only results/<run>   # recompute report after editing assumptions.json
+    python measure.py --list-models                      # check model ids available to your key
+    python measure.py --resume cv.md --requirements req.md --dry-run
+    python measure.py --resume cv.md --requirements req.md                # luna,terra,sol
+    python measure.py --resume cv.md --requirements req.md --models luna,sol
+    python measure.py --report-only results/<run>        # recompute after editing assumptions.json
 
-Needs: ANTHROPIC_API_KEY, `pip install anthropic` (and `pip install pypdf` for PDF inputs).
+Needs: OPENAI_API_KEY and `pip install openai` (ANTHROPIC_API_KEY and `pip install anthropic`
+only for Claude models). `pip install pypdf` for PDF inputs.
 Outputs go to results/<timestamp>/ (git-ignored: they contain personal data).
 """
 import argparse
@@ -21,9 +23,11 @@ from datetime import datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-PRICING = json.loads((HERE / "pricing.json").read_text(encoding="utf-8"))
+PRICING = {k: v for k, v in json.loads((HERE / "pricing.json").read_text(encoding="utf-8")).items()
+           if not k.startswith("_")}
+ASSUMPTIONS = HERE / "assumptions.json"
 STEPS = ["extract_list", "extract_vacancy", "filter", "dossier", "tailor", "review"]
-MAX_TOKENS = {"extract_list": 3000, "extract_vacancy": 1500, "filter": 400,
+MAX_OUTPUT = {"extract_list": 3000, "extract_vacancy": 1500, "filter": 400,
               "dossier": 1200, "tailor": 4000, "review": 1000}
 DOSSIER_HINTS = ("Resumen", "Opiniones", "Sueldo", "Entrevista", "Overview", "Reviews", "Salaries", "Interview")
 
@@ -69,41 +73,74 @@ def pick_inputs(recordings: Path) -> dict:
 
 # ---------- cost ----------
 
-def price(model_key: str, usage: dict) -> float:
+def price(model_key: str, u: dict) -> float:
+    """u: input (uncached), cached, cache_write, output (incl. reasoning) tokens."""
     p = PRICING[model_key]
-    prompt = usage["input_tokens"] + usage["cache_creation_input_tokens"] + usage["cache_read_input_tokens"]
+    prompt = u["input"] + u["cached"] + u["cache_write"]
     if "long_prompt" in p and prompt > p["long_prompt"]["threshold_tokens"]:
         p = {**p, **p["long_prompt"]}
-    return (usage["input_tokens"] * p["input"] + usage["output_tokens"] * p["output"]
-            + usage["cache_creation_input_tokens"] * p["cache_write"]
-            + usage["cache_read_input_tokens"] * p["cache_read"]) / 1e6
+    return (u["input"] * p["input"] + u["cached"] * p["cached_input"]
+            + u["cache_write"] * p.get("cache_write", p["input"]) + u["output"] * p["output"]) / 1e6
 
 
 # ---------- API ----------
 
-def call(client, model_key: str, step: str, user: str) -> dict:
-    system = (HERE / "prompts" / f"{step}.md").read_text(encoding="utf-8")
-    started = time.time()
-    resp = client.messages.create(model=PRICING[model_key]["model"], max_tokens=MAX_TOKENS[step],
-                                  system=system, messages=[{"role": "user", "content": user}])
+_clients = {}
+
+
+def client_for(provider: str):
+    if provider not in _clients:
+        if provider == "openai":
+            if not os.environ.get("OPENAI_API_KEY"):
+                sys.exit("Set OPENAI_API_KEY first")
+            import openai
+            _clients[provider] = openai.OpenAI()
+        else:
+            if not os.environ.get("ANTHROPIC_API_KEY"):
+                sys.exit("Set ANTHROPIC_API_KEY first")
+            import anthropic
+            _clients[provider] = anthropic.Anthropic()
+    return _clients[provider]
+
+
+def openai_usage(u) -> dict:
+    cached = getattr(getattr(u, "input_tokens_details", None), "cached_tokens", 0) or 0
+    reasoning = getattr(getattr(u, "output_tokens_details", None), "reasoning_tokens", 0) or 0
+    return {"input": u.input_tokens - cached, "cached": cached, "cache_write": 0,
+            "output": u.output_tokens, "reasoning": reasoning}
+
+
+def complete(model_key: str, system: str, user: str, max_output: int, effort: str) -> tuple:
+    """Returns (text, normalized usage)."""
+    p = PRICING[model_key]
+    client = client_for(p["provider"])
+    if p["provider"] == "openai":
+        resp = client.responses.create(model=p["model"], instructions=system, input=user,
+                                       max_output_tokens=max_output * 4,  # room for reasoning tokens
+                                       reasoning={"effort": effort})
+        return resp.output_text or "", openai_usage(resp.usage)
+    resp = client.messages.create(model=p["model"], max_tokens=max_output, system=system,
+                                  messages=[{"role": "user", "content": user}])
     u = resp.usage
-    usage = {"input_tokens": u.input_tokens, "output_tokens": u.output_tokens,
-             "cache_creation_input_tokens": getattr(u, "cache_creation_input_tokens", 0) or 0,
-             "cache_read_input_tokens": getattr(u, "cache_read_input_tokens", 0) or 0}
     text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
-    return {"model": model_key, "step": step, "usage": usage, "cost_usd": price(model_key, usage),
-            "seconds": round(time.time() - started, 1), "input_chars": len(system) + len(user), "output": text}
+    return text, {"input": u.input_tokens, "cached": getattr(u, "cache_read_input_tokens", 0) or 0,
+                  "cache_write": getattr(u, "cache_creation_input_tokens", 0) or 0,
+                  "output": u.output_tokens, "reasoning": 0}
 
 
-def run_model(client, model_key: str, inputs: dict, resume: str, requirements: str) -> list:
+def run_model(model_key: str, inputs: dict, resume: str, requirements: str, efforts: dict) -> list:
     out = []
 
     def do(step, user):
-        r = call(client, model_key, step, user)
+        system = (HERE / "prompts" / f"{step}.md").read_text(encoding="utf-8")
+        started = time.time()
+        text, usage = complete(model_key, system, user, MAX_OUTPUT[step], efforts.get(step, "low"))
+        r = {"model": model_key, "step": step, "usage": usage, "cost_usd": price(model_key, usage),
+             "seconds": round(time.time() - started, 1), "output": text}
         out.append(r)
-        print(f"  {model_key:6} {step:15} in={r['usage']['input_tokens']:>7,} out={r['usage']['output_tokens']:>6,} "
-              f"${r['cost_usd']:.4f} {r['seconds']}s")
-        return r["output"]
+        print(f"  {model_key:6} {step:15} in={usage['input'] + usage['cached']:>7,} out={usage['output']:>6,} "
+              f"(reasoning {usage['reasoning']:,}) ${r['cost_usd']:.4f} {r['seconds']}s")
+        return text
 
     do("extract_list", inputs["list"]["result"])
     vacancies = [do("extract_vacancy", c["result"]) for c in inputs["vacancies"]]
@@ -122,21 +159,33 @@ def run_model(client, model_key: str, inputs: dict, resume: str, requirements: s
 def step_averages(calls: list) -> dict:
     avg = {}
     for c in calls:
-        a = avg.setdefault(c["model"], {}).setdefault(c["step"], {"n": 0, "in": 0, "out": 0, "cost": 0.0, "sec": 0.0})
+        a = avg.setdefault(c["model"], {}).setdefault(
+            c["step"], {"n": 0, "in": 0, "out": 0, "reasoning": 0, "cost": 0.0, "sec": 0.0})
+        u = c["usage"]
         a["n"] += 1
-        a["in"] += c["usage"]["input_tokens"] + c["usage"]["cache_creation_input_tokens"] + c["usage"]["cache_read_input_tokens"]
-        a["out"] += c["usage"]["output_tokens"]
+        a["in"] += u["input"] + u["cached"] + u["cache_write"]
+        a["out"] += u["output"]
+        a["reasoning"] += u.get("reasoning", 0)
         a["cost"] += c["cost_usd"]
         a["sec"] += c["seconds"]
     for steps in avg.values():
         for a in steps.values():
-            for k in ("in", "out", "cost", "sec"):
+            for k in ("in", "out", "reasoning", "cost", "sec"):
                 a[k] /= a["n"]
     return avg
 
 
+def nav_fallback_cost(model_key: str, A: dict) -> float:
+    nf, p = A["nav_fallback"], PRICING[model_key]
+    ctx, cached = nf["context_tokens_per_turn"], nf["cached_share_after_first_turn"]
+    per_fallback = (ctx * p["input"]
+                    + (nf["turns"] - 1) * ctx * (cached * p["cached_input"] + (1 - cached) * p["input"])
+                    + nf["turns"] * nf["output_tokens_per_turn"] * p["output"]) / 1e6
+    return A["vacancies_detailed_per_run"] * nf["share_of_vacancies"] * per_fallback
+
+
 def run_cost(avg: dict, mix: dict, A: dict) -> tuple:
-    """Cost of one run of one profile for a step->model mix. Returns (total, per-step dict)."""
+    """Cost of one run of one profile for a step->model mix. Returns (total, per-step dict) or (None, None)."""
     counts = {
         "extract_list": A["search_pages_per_run"],
         "extract_vacancy": A["vacancies_detailed_per_run"],
@@ -151,30 +200,30 @@ def run_cost(avg: dict, mix: dict, A: dict) -> tuple:
         if m not in avg or step not in avg[m]:
             return None, None
         parts[step] = n * avg[m][step]["cost"]
-    nf = A["nav_fallback"]
-    m = mix.get("nav_fallback", mix["default"])
-    p = PRICING[m]
-    ctx, cached = nf["context_tokens_per_turn"], nf["cached_share_after_first_turn"]
-    per_fallback = (ctx * p["input"]
-                    + (nf["turns"] - 1) * ctx * (cached * p["cache_read"] + (1 - cached) * p["input"])
-                    + nf["turns"] * nf["output_tokens_per_turn"] * p["output"]) / 1e6
-    parts["nav_fallback (estimate)"] = A["vacancies_detailed_per_run"] * nf["share_of_vacancies"] * per_fallback
+    parts["nav_fallback (estimate)"] = nav_fallback_cost(mix.get("nav_fallback", mix["default"]), A)
     return sum(parts.values()), parts
+
+
+def monthly(total: float, A: dict) -> list:
+    return [total * s["profiles"] * s["runs_per_week"] * 52 / 12 for s in A["scenarios"]]
 
 
 def write_report(run_dir: Path) -> None:
     calls = json.loads((run_dir / "calls.json").read_text(encoding="utf-8"))
-    A = json.loads((HERE / "assumptions.json").read_text(encoding="utf-8"))
+    A = json.loads(ASSUMPTIONS.read_text(encoding="utf-8"))
     avg = step_averages(calls)
     L = [f"# LLM cost measurement — {run_dir.name}", "",
-         "Prices from `pricing.json`; volumes from `assumptions.json`. Tokens include system prompts.", "",
+         "Prices from `pricing.json`; volumes from `assumptions.json`. Tokens include system prompts; "
+         "output includes reasoning tokens.", "",
          "## Per step (average per call)", "",
-         "| Model | Step | Calls | Input tokens | Output tokens | Cost per call | Seconds |", "|---|---|---|---|---|---|---|"]
+         "| Model | Step | Calls | Input tokens | Output tokens | of which reasoning | Cost per call | Seconds |",
+         "|---|---|---|---|---|---|---|---|"]
     for m, steps in avg.items():
         for s in STEPS:
             if s in steps:
                 a = steps[s]
-                L.append(f"| {m} | {s} | {a['n']} | {a['in']:,.0f} | {a['out']:,.0f} | ${a['cost']:.4f} | {a['sec']:.1f} |")
+                L.append(f"| {m} | {s} | {a['n']} | {a['in']:,.0f} | {a['out']:,.0f} | {a['reasoning']:,.0f} | "
+                         f"${a['cost']:.4f} | {a['sec']:.1f} |")
     L += ["", "## Per run (one profile) and per month", "",
           "| Mix | Cost per run | Cost per tailored vacancy | " + " | ".join(s["name"] for s in A["scenarios"]) + " |",
           "|---|---|---|" + "---|" * len(A["scenarios"])]
@@ -183,9 +232,8 @@ def write_report(run_dir: Path) -> None:
         total, parts = run_cost(avg, mix, A)
         if total is None:
             continue
-        months = [total * s["profiles"] * s["runs_per_week"] * 52 / 12 for s in A["scenarios"]]
         L.append(f"| {name} | ${total:.3f} | ${total / A['vacancies_tailored_per_run']:.3f} | "
-                 + " | ".join(f"${x:.2f}/mo" for x in months) + " |")
+                 + " | ".join(f"${x:.2f}/mo" for x in monthly(total, A)) + " |")
         details.append((name, total, parts))
     L += ["", "## Where the money goes (per run)", ""]
     for name, total, parts in details:
@@ -197,16 +245,29 @@ def write_report(run_dir: Path) -> None:
 
 # ---------- main ----------
 
+def list_models() -> None:
+    names = sorted(m.id for m in client_for("openai").models.list() if m.id.startswith("gpt-6"))
+    print("\n".join(names) or "No gpt-6* models visible to this key")
+    configured = {v["model"] for v in PRICING.values() if v["provider"] == "openai"}
+    missing = configured - set(names)
+    if missing:
+        print(f"\nNot available, fix pricing.json: {', '.join(sorted(missing))}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--recordings", type=Path, default=HERE.parent / "browser-flows" / "recordings")
     ap.add_argument("--resume", type=Path)
     ap.add_argument("--requirements", type=Path)
-    ap.add_argument("--models", default="haiku,sonnet")
+    ap.add_argument("--models", default="luna,terra,sol")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--report-only", type=Path)
+    ap.add_argument("--list-models", action="store_true")
     args = ap.parse_args()
 
+    if args.list_models:
+        list_models()
+        return
     if args.report_only:
         write_report(args.report_only)
         return
@@ -215,7 +276,7 @@ def main() -> None:
     models = [m.strip() for m in args.models.split(",")]
     for m in models:
         if m not in PRICING:
-            sys.exit(f"Unknown model '{m}'. Known: {', '.join(k for k in PRICING if not k.startswith('_'))}")
+            sys.exit(f"Unknown model '{m}'. Known: {', '.join(PRICING)}")
 
     inputs = pick_inputs(args.recordings)
     resume, requirements = read_text(args.resume), read_text(args.requirements)
@@ -225,21 +286,17 @@ def main() -> None:
           f"resume {len(resume):,}; requirements {len(requirements):,} chars")
     if args.dry_run:
         return
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        sys.exit("Set ANTHROPIC_API_KEY first")
 
-    import anthropic
-    client = anthropic.Anthropic()
+    efforts = json.loads(ASSUMPTIONS.read_text(encoding="utf-8")).get("reasoning_effort", {})
     run_dir = HERE / "results" / datetime.now().strftime("%Y%m%d-%H%M%S")
     run_dir.mkdir(parents=True)
     calls = []
     for m in models:
         print(f"== {m}")
-        calls += run_model(client, m, inputs, resume, requirements)
+        calls += run_model(m, inputs, resume, requirements, efforts)
         (run_dir / "calls.json").write_text(json.dumps(calls, ensure_ascii=False, indent=1), encoding="utf-8")
     write_report(run_dir)
-    total = sum(c["cost_usd"] for c in calls)
-    print(f"Spent on this measurement: ${total:.3f}")
+    print(f"Spent on this measurement: ${sum(c['cost_usd'] for c in calls):.3f}")
 
 
 if __name__ == "__main__":

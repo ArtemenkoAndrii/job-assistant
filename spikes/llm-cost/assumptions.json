@@ -15,13 +15,82 @@
     "cached_share_after_first_turn": 0.8
   },
   "mixes": {
-    "all-haiku": {"default": "haiku"},
-    "all-sonnet": {"default": "sonnet"},
-    "mixed": {"default": "haiku", "tailor": "sonnet", "review": "sonnet", "nav_fallback": "sonnet"}
+    "all-luna": {
+      "default": "luna"
+    },
+    "luna + terra": {
+      "default": "luna",
+      "tailor": "terra",
+      "review": "terra",
+      "nav_fallback": "terra"
+    },
+    "luna + sol": {
+      "default": "luna",
+      "tailor": "sol",
+      "review": "sol",
+      "nav_fallback": "sol"
+    },
+    "all-terra": {
+      "default": "terra"
+    },
+    "all-sol": {
+      "default": "sol"
+    },
+    "haiku + sonnet (Claude, for comparison)": {
+      "default": "haiku",
+      "tailor": "sonnet",
+      "review": "sonnet",
+      "nav_fallback": "sonnet"
+    }
   },
   "scenarios": [
-    {"name": "light: 1 profile, 3 runs/week", "profiles": 1, "runs_per_week": 3},
-    {"name": "daily: 1 profile, 7 runs/week", "profiles": 1, "runs_per_week": 7},
-    {"name": "max: 3 profiles, 7 runs/week", "profiles": 3, "runs_per_week": 7}
-  ]
+    {
+      "name": "light: 1 profile, 3 runs/week",
+      "profiles": 1,
+      "runs_per_week": 3
+    },
+    {
+      "name": "daily: 1 profile, 7 runs/week",
+      "profiles": 1,
+      "runs_per_week": 7
+    },
+    {
+      "name": "max: 3 profiles, 7 runs/week",
+      "profiles": 3,
+      "runs_per_week": 7
+    }
+  ],
+  "reasoning_effort": {
+    "_comment": "OpenAI reasoning effort per step; reasoning tokens are billed as output.",
+    "extract_list": "low",
+    "extract_vacancy": "low",
+    "filter": "low",
+    "dossier": "low",
+    "tailor": "medium",
+    "review": "medium",
+    "agent_task": "low"
+  },
+  "agent": {
+    "_comment": "agent_tasks.py projection: tasks per run of one profile, max tool calls per task, and which models write.",
+    "search_tasks_per_run": 2,
+    "vacancy_tasks_per_run": 25,
+    "company_tasks_per_run": 8,
+    "max_tool_calls": {
+      "search": 30,
+      "vacancy": 8,
+      "company": 10
+    },
+    "writing_mixes": {
+      "terra writes": {
+        "filter": "luna",
+        "tailor": "terra",
+        "review": "terra"
+      },
+      "sol writes": {
+        "filter": "luna",
+        "tailor": "sol",
+        "review": "sol"
+      }
+    }
+  }
 }
