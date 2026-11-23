@@ -5,7 +5,7 @@
 | **Status** | v1 — for acceptance |
 | **Owner** | ArtemenkoAndrii |
 | **Issues** | #1 (draft), #5 (v1) |
-| **Last updated** | 2026-11-23 |
+| **Last updated** | 2026-11-23 (use cases #6) |
 | **Based on** | Spikes [#2 browser flows](spikes/browser-flows.md), [#3 LLM cost](spikes/llm-cost.md), [#4 application channels](spikes/application-channels.md) |
 
 ## 1. Summary
@@ -89,13 +89,14 @@ The browser is used **read only**: the system searches and reads vacancies and e
 3. A search profile can be created, activated, deactivated and deleted.
 4. Vacancies and employer information come from **LinkedIn and Glassdoor**.
 5. For each profile the user sees the history of runs: date, vacancies found, packages prepared, vacancies applied to.
-6. Clicking a run opens a table of vacancies; each row opens the **application package**: dossier, tailored resume (PDF, added skills highlighted), answers, cover note, link and channel, and the vacancy status (*prepared*, *applied*, *skipped*).
+6. Clicking a run opens a table of vacancies; each row opens the **application package**: dossier, tailored resume (PDF, added skills highlighted), answers, cover note, link and channel, and the vacancy status (*prepared*, *applied*, *skipped*, *skipped by filter*, *failed*).
+6a. **Run now:** the user can start a run of any profile by hand, in addition to the schedule.
 
 ### Added to the original scope
 
-7. **Application data in the profile:** the answers forms ask for and a resume does not contain — phone number, salary expectation, notice period, current location and relocation preference, work permit / visa sponsorship, years of experience per technology, languages.
+7. **Application data:** the answers forms ask for and a resume does not contain. Personal data — phone number, current location and relocation willingness, work permit / visa sponsorship, notice period, languages, LinkedIn URL — lives in **Settings** and is shared by all profiles; salary expectation, location and work type preferences and years of experience per technology live in the **profile**.
 8. **Added-skill highlighting:** every skill added to a tailored resume is highlighted, with a short note on what to learn before the interview; the user can reject it.
-9. **Company blacklist:** companies that are always skipped (e.g. the current employer).
+9. **Company blacklist:** companies that are always skipped (e.g. the current employer); one list for all profiles, in Settings.
 10. **Browsing limits:** maximum number of vacancies and pages opened per run, to stay a polite guest on the job boards.
 11. **Kill switch:** one action stops all runs immediately.
 12. **Summary email** after each run, listing the prepared packages.
@@ -156,19 +157,18 @@ The browser is used **read only**: the system searches and reads vacancies and e
 ## 13. Open questions
 
 1. Are "direct referrals" and general web search (e.g. Google) sources for a later version?
-2. Where do resume tailoring rules and application data live: in the requirements file, or as separate profile settings? (use cases, #6)
-3. How often should runs be scheduled by default (daily, several times a week)?
-4. How long are runs, dossiers and packages retained?
-5. What are the default browsing limits per run?
+2. How often should runs be scheduled by default (daily, several times a week)?
+3. How long are runs, dossiers and packages retained?
+4. What are the default browsing limits per run?
 
-Answered by the spikes: LLM cap ($10/month, #3); which channels can be automated and what the MVP does (prepare packages, manual submission, #4).
+Answered: LLM cap ($10/month, #3); which channels can be automated and what the MVP does (prepare packages, manual submission, #4); where application data and tailoring rules live (Settings, profile and fixed system rules with per-profile tailoring notes — [use cases](requirements/use-cases.md) #6).
 
 ## 14. Glossary
 
 | Term | Meaning |
 |---|---|
 | **Search profile** | A resume + requirements pair with application data, its own schedule and history; up to 3 per user |
-| **Requirements file** | User's criteria for vacancies: stack, salary, location / remote, etc. |
+| **Requirements file** | User's criteria for vacancies: role, stack, salary, location / remote, optional tailoring notes |
 | **Application data** | Profile answers that forms ask for and a resume does not contain (phone, salary expectation, notice period, work permit, …) |
 | **Run** | One execution of the pipeline for one search profile |
 | **Source** | Where vacancies and employer information come from; MVP: LinkedIn and Glassdoor |
@@ -178,12 +178,13 @@ Answered by the spikes: LLM cap ($10/month, #3); which channels can be automated
 | **Added skill** | A skill not present in the source resume, added under the rules in section 9; always highlighted to the user |
 | **Application package** | Everything the user needs to apply to one vacancy: tailored resume (PDF), dossier, answers, cover note, link and channel |
 | **Channel** | How one applies to a vacancy, chosen by the employer: LinkedIn Easy Apply, Glassdoor quick apply, employer ATS or careers site, email |
-| **Vacancy status** | *prepared* (package ready), *applied* (marked by the user), *skipped* |
+| **Vacancy status** | *prepared* (package ready), *applied* (marked by the user), *skipped* (by the user), *skipped by filter*, *failed* (page could not be processed) |
 | **Kill switch** | A single action that stops all runs |
 | **A-1** | The external Browser MCP endpoint (see Assumptions) |
 
 ## 15. References
 
 - [The AI-native SDLC playbook](https://claude.com/resources/articles/the-ai-native-sdlc-playbook)
+- [Use cases and story map](requirements/use-cases.md)
 - Spikes: [browser flows](spikes/browser-flows.md), [LLM cost](spikes/llm-cost.md), [application channels](spikes/application-channels.md)
 - Roadmap: GitHub milestones P0–P5
