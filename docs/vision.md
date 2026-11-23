@@ -67,7 +67,7 @@ Searching for a job is repetitive and time-consuming:
 For each active search profile, on a schedule:
 
 1. **Search** vacancies in the sources: LinkedIn and Glassdoor.
-2. **Deduplicate** against previously processed vacancies.
+2. **Deduplicate** against previously processed vacancies and the **applied registry** (vacancies the user applied to within the re-apply period, default 90 days).
 3. **Hard-filter** obvious mismatches: salary below expectations, wrong location or work format, stack too far from the user's, blacklisted companies.
 4. **Research the employer** and build a short dossier: what the company does, rating, pros and cons from reviews, salary levels, interview difficulty and questions. Sources start with LinkedIn and Glassdoor and can be extended (company website, news, salary and review sites, web search); every fact links to its source.
 5. **Re-filter** using the dossier (e.g. the realistic salary turns out to be too low).
@@ -100,6 +100,7 @@ The browser is used **read only**: the system searches and reads vacancies and e
 10. **Browsing limits:** maximum number of vacancies and pages opened per run, to stay a polite guest on the job boards.
 11. **Kill switch:** one action stops all runs immediately.
 12. **Summary email** after each run, listing the prepared packages.
+13. **Applied registry:** marking a vacancy *applied* adds it to one list for all profiles (position, company, link, channel, date, package used). Vacancies in the registry do not appear in results again until the **re-apply period** set in Settings has passed (default **90 days**).
 
 ### Out of scope for MVP
 
@@ -114,7 +115,7 @@ The browser is used **read only**: the system searches and reads vacancies and e
 - **Never invent experience.** A tailored resume may reorder, emphasize and rephrase, but never add roles, projects, achievements, dates or years of experience that are not in the source resume.
 - **Learnable skills only, always highlighted.** A skill missing from the source resume may be added only if all of the following hold:
   - it is critical for the vacancy (required or strongly preferred);
-  - the user can realistically learn it at an overview level within a couple of days before an interview;
+  - the user can realistically learn it at an overview level within **two weeks**;
   - it is listed as a skill only, not attributed to a past role, project or achievement;
   - it is highlighted to the user, with a short note on what to learn, and can be rejected.
 - **Read only, and a polite guest.** The browser only reads; it respects browsing limits, acts slowly and stops immediately on a CAPTCHA, login page or any sign of account restriction.
@@ -181,6 +182,8 @@ Answered: LLM cap ($10/month, #3); which channels can be automated and what the 
 | **Application package** | Everything the user needs to apply to one vacancy: tailored resume (PDF), dossier, answers, cover note, link and channel |
 | **Channel** | How one applies to a vacancy, chosen by the employer: LinkedIn Easy Apply, Glassdoor quick apply, employer ATS or careers site, email |
 | **Vacancy status** | *prepared* (package ready), *applied* (marked by the user), *skipped* (by the user), *skipped by filter*, *failed* (page could not be processed) |
+| **Applied registry** | One list of all vacancies the user marked *applied*, across profiles; used for de-duplication |
+| **Re-apply period** | Days after which an applied vacancy may appear in results again; Settings, default 90 |
 | **Kill switch** | A single action that stops all runs |
 | **A-1** | The external Browser MCP endpoint (see Assumptions) |
 

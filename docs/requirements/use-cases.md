@@ -38,6 +38,7 @@
 | UC-12 | Reject an added skill | User | S5 #30 |
 | UC-13 | Mark a vacancy as applied or skipped | User | S5 #30 |
 | UC-14 | Stop all runs (kill switch) | User | S6 #31 |
+| UC-15 | View the applied registry | User | S5 #30 |
 
 ## 3. Use cases
 
@@ -56,9 +57,11 @@
 ### UC-02 Manage settings
 
 - **Actor:** User. **Precondition:** signed in.
-- **Main flow:** the user opens Settings, changes the notification email and saves.
-- **Alternative flows:** A1. Invalid email → field error, nothing saved.
-- **Result:** summaries and alerts go to the chosen address.
+- **Main flow:** the user opens Settings and changes:
+  - the notification email;
+  - the **re-apply period** — after how many days a vacancy the user has applied to may appear in results again (default **90 days**).
+- **Alternative flows:** A1. Invalid email or a period below 1 day → field error, nothing saved.
+- **Result:** summaries and alerts go to the chosen address; the applied registry (UC-15) uses the chosen period.
 
 All job-search data lives in the two files of each profile (UC-03), as in the vision.
 
@@ -119,11 +122,14 @@ All job-search data lives in the two files of each profile (UC-03), as in the vi
 - **Actor:** Job Finder. **Precondition:** a queued run; A-1 reachable.
 - **Main flow:**
   1. **Search** LinkedIn and Glassdoor with the profile's criteria, within the browsing limits.
-  2. **Deduplicate**: drop vacancies already processed for this profile; merge the same vacancy found on both sources.
+  2. **Deduplicate**:
+     - drop vacancies listed in the **applied registry** (UC-15) within the re-apply period — for every profile, not only the one that applied;
+     - drop vacancies already processed for this profile in earlier runs;
+     - merge the same vacancy found on both sources.
   3. **Hard-filter**: salary, location, work type, stack, excluded companies. Rejected vacancies are kept with the reason (*skipped by filter*).
   4. **Research** each remaining employer: one dossier per company per run, built from the configured **dossier sources** — first LinkedIn and Glassdoor, extensible to others (company website, news, salary and review sites, web search). Every fact keeps a link to its source.
   5. **Re-filter** with the dossier.
-  6. **Tailor** the resume for each remaining vacancy.
+  6. **Tailor** the resume for each remaining vacancy under the rules of vision §9: reorder, emphasise and rephrase the base resume; never invent experience. A skill missing from the base resume may be added **only if** it is critical for the vacancy (required or strongly preferred) **and** the user can learn it at an overview level **within two weeks**; it goes only into the skills section, is highlighted and comes with a "what to learn" note.
   7. **Review** each tailored resume; on "rework" tailor again (max 2 rounds), then keep the best version with the reviewer's issues attached.
   8. **Prepare the package**: resume PDF, dossier, answers from settings and profile, cover note, link and channel. Status *prepared*.
   9. Record run statistics and cost; send the summary (UC-09).
@@ -188,8 +194,13 @@ All job-search data lives in the two files of each profile (UC-03), as in the vi
 ### UC-13 Mark a vacancy as applied or skipped
 
 - **Actor:** User.
-- **Main flow:** after applying, the user marks the vacancy *applied* (date recorded); or marks it *skipped* with an optional reason.
-- **Result:** run history counts applications; skip reasons help tune filters later.
+- **Main flow:**
+  1. The user downloads the resume PDF, applies on the employer's channel and marks the vacancy *applied*.
+  2. The system records the date and adds an entry to the **applied registry** (UC-15): the same data as in the run history — position, company, source and link, channel, profile, run, date applied, and the resume and answers that were used.
+- **Alternative flows:**
+  - A1. The user marks the vacancy *skipped*, with an optional reason → no registry entry.
+  - A2. The user marked *applied* by mistake → undo removes the registry entry.
+- **Result:** run history counts applications; the vacancy will not come back in any profile during the re-apply period.
 
 ### UC-14 Stop all runs (kill switch)
 
@@ -197,6 +208,17 @@ All job-search data lives in the two files of each profile (UC-03), as in the vi
 - **Main flow:** the user turns on the kill switch → the running run stops after the current step, queued runs are dropped, no new runs start.
 - **Alternative flows:** A1. Turning the kill switch off → scheduled runs resume from the next slot.
 - **Result:** the system stops touching the job boards immediately.
+
+### UC-15 View the applied registry
+
+- **Actor:** User.
+- **Main flow:**
+  1. The user opens "Applied" — one list for all profiles.
+  2. Each entry shows position, company, source and link, channel, profile, date applied, and opens the package that was used (resume PDF, answers, dossier).
+  3. Entries older than the re-apply period are shown as *expired*: their vacancies may appear in results again.
+- **Alternative flows:** A1. The user removes an entry → that vacancy may appear again immediately.
+- **How a vacancy is matched against the registry:** same source and job id; or, because vacancies get reposted with new ids, the same company and position title.
+- **Result:** one place to see where and with what the user has applied; the source of truth for de-duplication across runs and profiles.
 
 ## 4. Story map
 
@@ -209,7 +231,7 @@ Backbone (left to right) is the user's journey; each column lists the stories, g
 | **S2 #27** | | Run now (UC-05); search LinkedIn + Glassdoor, dedupe, hard filter (UC-07 steps 1–3); blocked run handling (UC-08) | Vacancy list of a run with statuses and skip reasons (basic UC-10) | | Browsing limits |
 | **S3 #28** | | Employer dossier, re-filter (UC-07 steps 4–5) | Dossier on the vacancy page | | |
 | **S4 #29** | | Tailor + review loop (UC-07 steps 6–7) | Tailored resume with highlighted added skills | | |
-| **S5 #30** | | Package preparation, answers, cover note, PDF (UC-07 step 8); summary email (UC-09) | Package page (UC-11); reject added skill (UC-12) | Mark applied / skipped (UC-13) | LLM budget stop (UC-07 A5) |
+| **S5 #30** | Re-apply period in Settings (UC-02) | Package preparation, answers, cover note, PDF (UC-07 step 8); summary email (UC-09); dedupe against the applied registry (UC-07 step 2) | Package page (UC-11); reject added skill (UC-12) | Mark applied / skipped (UC-13); applied registry (UC-15) | LLM budget stop (UC-07 A5) |
 | **S6 #31** | | Scheduler, run queue (UC-06) | Full run history with counts and cost (UC-10) | | Kill switch (UC-14) |
 
 The **MVP is complete after S6**: every use case in this document is covered.
@@ -229,6 +251,8 @@ The **MVP is complete after S6**: every use case in this document is covered.
 | G9 | Review loop could run forever | Max 2 rework rounds, then keep the best version with the reviewer's notes |
 | G10 | LLM cap ($10/month) needs a behaviour when reached | Stop the run before the next LLM step, alert the user (UC-07 A5) |
 | G11 | Vacancy statuses in the vision cover only packages | Full set: *prepared, applied, skipped, skipped by filter, failed* |
+| G13 | A vacancy already applied to must not come back in later runs or other profiles | **Applied registry** (UC-15) filled when the user marks *applied*; de-duplication checks it for every profile; the **re-apply period** in Settings (default 90 days) controls when a vacancy may come back |
+| G14 | Added-skill rule had "a couple of days" as the learning limit | Changed to **two weeks** of overview-level learning (vision §9) |
 | G12 | The dossier should not be limited to LinkedIn and Glassdoor | Separate **vacancy sources** (LinkedIn, Glassdoor) from **dossier sources** (start with LinkedIn and Glassdoor, extensible); each dossier fact links to its source |
 
 Values left to NFR (#7): default schedule, browsing limits per run, file size limit, retention period.
