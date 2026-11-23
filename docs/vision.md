@@ -60,7 +60,7 @@ Searching for a job is repetitive and time-consuming:
 | User time per package (review + manual submission) | ≤ 5 min |
 | Response rate from employers | Tracked; baseline to be established |
 | Infrastructure cost per month | ≤ $5 |
-| LLM cost per month | ≤ $10 (cap); expected ~$2–4 for one profile (spike #3) |
+| LLM cost per month | ≤ $10 (cap); expected ~$1 for one profile on the weekly schedule (spike #3, NFR-C5) |
 
 ## 7. How it works
 

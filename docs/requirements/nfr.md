@@ -7,7 +7,7 @@
 | **Based on** | [Vision v1](../vision.md), [use cases](use-cases.md), spikes [#2](../spikes/browser-flows.md), [#3](../spikes/llm-cost.md), [#4](../spikes/application-channels.md) |
 | **Last updated** | 2026-11-23 |
 
-Each requirement has an ID, a measurable target and a way to verify it. Values marked **(proposed)** answer open questions of the vision and need the owner's confirmation. ADRs and specs refer to these IDs.
+Each requirement has an ID, a measurable target and a way to verify it. Values that answered open questions of the vision are listed in §12. ADRs and specs refer to these IDs.
 
 ## 1. Cost
 
@@ -17,13 +17,13 @@ Each requirement has an ID, a measurable target and a way to verify it. Values m
 | NFR-C2 | LLM cost cap | ≤ **$10/month**, alert at **$5** | Provider budget / usage alert; monthly report |
 | NFR-C3 | LLM cost is recorded per run and per step | 100% of runs | Run record has cost per step; checked in tests |
 | NFR-C4 | Reaching the LLM cap stops runs | The next LLM step does not start; run status *stopped: budget* | Test with a lowered cap |
-| NFR-C5 | Expected LLM cost per run of one profile | ~$0.15–0.25 (spike #3: $0.13 + web search ~$0.08) | Monthly cost report vs estimate; investigate if > 2× |
+| NFR-C5 | Expected LLM cost | ~$0.15–0.25 per run of one profile (spike #3: $0.13 + web search ~$0.08) → **~$1/month** for one profile on the weekly schedule | Monthly cost report vs estimate; investigate if > 2× |
 
 ## 2. Runs and scheduling
 
 | ID | Requirement | Target | Verification |
 |---|---|---|---|
-| NFR-R1 | Default schedule of an active profile **(proposed)** | **Mon, Wed, Fri at 07:30 Europe/Madrid**; per profile also "workdays" or "daily" | Scheduler config test |
+| NFR-R1 | Default schedule of an active profile | **Once a week, in the night from Friday to Saturday** (Saturday 01:30 Europe/Madrid); the schedule can be changed per profile | Scheduler config test |
 | NFR-R2 | Runs are sequential | Never more than one run at a time (one browser profile, A-4) | Queue test with two profiles |
 | NFR-R3 | Run duration for one profile | ≤ **90 min** (spike #3: 1.5–2.5 min per vacancy) | Run records; alert if exceeded |
 | NFR-R4 | Summary email after a run | Sent ≤ **10 min** after the run ends | Timestamp check in run records |
@@ -31,14 +31,14 @@ Each requirement has an ID, a measurable target and a way to verify it. Values m
 
 ## 3. Browsing limits (being a polite guest)
 
-| ID | Requirement | Target **(proposed)** | Verification |
+| ID | Requirement | Target | Verification |
 |---|---|---|---|
 | NFR-B1 | Browser is read only | No form filled or submitted; no account changes | Tool allowlist (no typing into forms, no uploads, no JavaScript from the LLM); review of agent traces |
-| NFR-B2 | Search pages per source per run | ≤ **2** (≈ 50 LinkedIn results) | Counter per run; hard stop |
+| NFR-B2 | Search pages per source per run | ≤ **2** (≈ 50 LinkedIn results; with a weekly run, search covers the past week) | Counter per run; hard stop |
 | NFR-B3 | Vacancies opened per run | ≤ **25** | Counter per run; hard stop |
 | NFR-B4 | Employers researched per run | ≤ **8**, ≤ 3 pages each on job boards | Counter per run |
 | NFR-B5 | Page loads per job board per day, all profiles together | ≤ **150** | Daily counter; further runs that day are skipped |
-| NFR-B6 | Pace | Random pause of **3–8 s** between browser actions; no parallel browsing | Agent trace timestamps |
+| NFR-B6 | Pace | **Random pause of 1–5 s** between browser actions, so navigation looks less like a bot; no parallel browsing | Agent trace timestamps |
 | NFR-B7 | Stop conditions | Login page, authwall, CAPTCHA, "Just a moment…", restriction or unusual-activity notice → stop at once, no retries (UC-08) | Tests on recorded pages (#24) |
 
 ## 4. Availability and reliability
@@ -72,8 +72,8 @@ The MVP processes only the owner's own data, but it is built as if it had other 
 | ID | Requirement | Target | Verification |
 |---|---|---|---|
 | NFR-P1 | Data minimisation | Store only: account email, settings, profile files, runs, vacancies, dossiers, packages, applied registry. No copies of full job-board pages beyond what a package shows | Data model review |
-| NFR-P2 | Data location | All stored data in an **EU region** | IaC check (exact region in ADRs #15, #18, considering free-tier availability) |
-| NFR-P3 | Retention **(proposed)** | Packages and dossiers of vacancies not applied to: **90 days**. Applied registry and its packages: until the user deletes them (needed for the re-apply period). Run records without personal data: 12 months. Logs: **30 days**, without resume content | Scheduled cleanup job; test |
+| NFR-P2 | Data location | **Any region**; the region is chosen to stay within the free tier (ADRs #15, #18). Revisit if the product gets other users | IaC check |
+| NFR-P3 | Retention | Packages and dossiers of vacancies not applied to: **90 days**. Applied registry and its packages: until the user deletes them (needed for the re-apply period). Run records without personal data: 12 months. Logs: **30 days**, without resume content | Scheduled cleanup job; test |
 | NFR-P4 | Deletion | Deleting a profile removes its files, runs and packages within **24 h**; backups expire within 7 days | Test + backup policy |
 | NFR-P5 | Data sent to the LLM provider | Only what a step needs (resume, vacancy, dossier text); provider terms checked so that API data is not used for training (ADR #19) | ADR #19; prompt review |
 | NFR-P6 | Personal data in logs and traces | Resume text, phone and email are not logged; agent traces kept ≤ 30 days | Log review; test |
@@ -81,7 +81,7 @@ The MVP processes only the owner's own data, but it is built as if it had other 
 
 ## 7. Files and inputs
 
-| ID | Requirement | Target **(proposed)** | Verification |
+| ID | Requirement | Target | Verification |
 |---|---|---|---|
 | NFR-F1 | Accepted formats | .pdf (with a text layer), .txt, .md | Upload tests |
 | NFR-F2 | File size | ≤ **5 MB** per file | Upload test |
@@ -126,13 +126,14 @@ The MVP processes only the owner's own data, but it is built as if it had other 
 | NFR-M4 | Build and test | One command each, non-zero exit on failure; CI runs both on every PR | CI |
 | NFR-M5 | Tests never touch real job boards | CI uses recorded pages and a fake MCP (#24) | CI network rule / hook |
 
-## 12. Decisions needed
+## 12. Decisions (2026-11-23)
 
-These values are proposals; after confirmation they close the vision's open questions:
+These values close the vision's open questions:
 
-| Question (vision §13) | Proposed value | NFR |
+| Question (vision §13) | Decision | NFR |
 |---|---|---|
-| Default schedule | Mon, Wed, Fri at 07:30 Europe/Madrid; per profile: workdays or daily | NFR-R1 |
-| Browsing limits per run | 2 search pages per source, 25 vacancies, 8 employers, 150 page loads per job board per day, 3–8 s pauses | NFR-B2…B6 |
+| Default schedule | Once a week, night from Friday to Saturday (Saturday 01:30 Europe/Madrid); changeable per profile | NFR-R1 |
+| Browsing limits per run | 2 search pages per source, 25 vacancies, 8 employers, 150 page loads per job board per day, random 1–5 s pauses | NFR-B2…B6 |
 | Retention | 90 days for packages not applied to; applied registry until deleted; logs 30 days | NFR-P3 |
 | File size | 5 MB | NFR-F2 |
+| Data location | Any region; free tier decides | NFR-P2 |
