@@ -39,7 +39,7 @@ def read_text(path: Path) -> str:
         try:
             from pypdf import PdfReader
         except ImportError:
-            sys.exit("PDF input needs: pip install pypdf (or pass a .md / .txt file)")
+            sys.exit("PDF input needs: python -m pip install pypdf (or pass a .md / .txt file)")
         return "\n".join(page.extract_text() or "" for page in PdfReader(str(path)).pages)
     return path.read_text(encoding="utf-8")
 
@@ -93,12 +93,18 @@ def client_for(provider: str):
         if provider == "openai":
             if not os.environ.get("OPENAI_API_KEY"):
                 sys.exit("Set OPENAI_API_KEY first")
-            import openai
+            try:
+                import openai
+            except ImportError:
+                sys.exit("Missing package. Run: python -m pip install openai")
             _clients[provider] = openai.OpenAI()
         else:
             if not os.environ.get("ANTHROPIC_API_KEY"):
                 sys.exit("Set ANTHROPIC_API_KEY first")
-            import anthropic
+            try:
+                import anthropic
+            except ImportError:
+                sys.exit("Missing package. Run: python -m pip install anthropic")
             _clients[provider] = anthropic.Anthropic()
     return _clients[provider]
 

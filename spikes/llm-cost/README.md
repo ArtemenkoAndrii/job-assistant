@@ -23,7 +23,7 @@ MVP architecture (decision in #19): **an agent with short tasks** over the Brows
 ## Before you start
 
 - OpenAI API key with balance on platform.openai.com. Both measurements together cost roughly **$0.50–1**.
-- Python 3: `pip install openai pypdf`
+- Python 3: `python -m pip install openai pypdf`
 - Recordings from spike #2 in `spikes/browser-flows/recordings/`.
 - Your resume and requirements file (`.md`, `.txt` or `.pdf`).
 - For `agent_tasks.py`: A-1 is up, LinkedIn and Glassdoor are logged in, and you have the Cloudflare Access service token.
