@@ -1,0 +1,33 @@
+Job finder is an AI-driven product designed to automate sending resumes to employers.
+At the first stage, it is expected to be a single-user product with the possibility of expansion in the future.
+It is assumed that the user uploads their resume as a file together with a separate file describing
+the job requirements (technology stack, expected salary, office location or remote, etc.).
+After that, the system, based on previously configured sources (LinkedIn, Glassdoor, direct referrals, maybe even Google),
+searches for vacancies according to the criteria and filters out those that have already been processed or those that
+obviously do not match the search criteria (salary below expectations, unsuitable location, too large a deviation from the applicant's technology stack, etc.).
+After that, for each vacancy that passes the filtering, a brief dossier on the employer is collected (what the company does, employee reviews, what salary to expect from it,
+what questions are asked during interviews, etc.), after which a second filtering takes place (for example, the dossier revealed that the salary still does not meet the requirements).
+Then, for each vacancy from the final list, a resume tailored specifically to that vacancy is created according to previously configured rules and the data from the applicant's resume.
+Each such resume then undergoes a review by another agent and, if necessary, is sent back for revision. After that, the resume is sent to the employer, and the user
+receives a brief summary of the submitted resumes and companies. This entire process is repeated periodically and according to a schedule.
+
+As agents and harness, I plan to use Claude Code with a reasonable choice of models corresponding to the tasks at hand, although the model provider may be changed in the future.
+The product should be hosted in the cloud with a free tier or minimal cost (up to $5 per month for everything).
+Preference is given to GCP, since an account has already been created, but other options (and combinations of them) should also be considered.
+
+For the user, the application should provide the simplest possible Web UI, responsively accessible both through a laptop browser and mobile devices.
+At the same time, authentication should be as simple as possible to implement but sufficiently reliable for the level of a developing startup.
+
+The MVP looks like this:
+Behavior and UX:
+0) The user must authenticate and provide an email.
+
+The user lands on a personal page where they are required to upload a resume file (.pdf, .txt, .md) and a job requirements file (.pdf, .txt, .md)
+
+Each such pair is a "search profile" and the user can upload up to 3 such pairs
+
+Each search profile can be created, activated/deactivated, or deleted
+
+For each search profile, the user can view the results of previous searches (search date, number of vacancies found, number of resumes sent)
+
+By clicking on a specific search result, a table should be displayed on a separate page with a brief vacancy dossier and a copy of the submitted resume, and the submission method (email, form on the employer's website, etc.)
