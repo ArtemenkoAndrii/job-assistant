@@ -16,7 +16,7 @@
 | **Job Finder** | System | Runs the pipeline: search, filter, research, tailor, review, prepare packages, notify |
 | **Browser (A-1)** | External system | Remote browser with the user's LinkedIn and Glassdoor sessions, behind Cloudflare Access |
 | **Job boards** | External system | LinkedIn and Glassdoor, reached only through A-1, read only |
-| **Other dossier sources** | External system | Company websites, news, salary and review sites, web search — added over time |
+| **Other dossier sources** | External system | Company websites (through A-1) and web search (news, salary and review sites); more can be added later |
 | **LLM provider** | External system | OpenAI models for agents |
 | **Email service** | External system | Delivers summary and alert emails |
 
@@ -127,7 +127,7 @@ All job-search data lives in the two files of each profile (UC-03), as in the vi
      - drop vacancies already processed for this profile in earlier runs;
      - merge the same vacancy found on both sources.
   3. **Hard-filter**: salary, location, work type, stack, excluded companies. Rejected vacancies are kept with the reason (*skipped by filter*).
-  4. **Research** each remaining employer: one dossier per company per run, built from the configured **dossier sources** — first LinkedIn and Glassdoor, extensible to others (company website, news, salary and review sites, web search). Every fact keeps a link to its source.
+  4. **Research** each remaining employer: one dossier per company per run, built from the **dossier sources**: LinkedIn, Glassdoor, the company's own website (through A-1) and web search (news, salary and review sites, through the LLM provider's search tool); more can be added later. Every fact keeps a link to its source.
   5. **Re-filter** with the dossier.
   6. **Tailor** the resume for each remaining vacancy under the rules of vision §9: reorder, emphasise and rephrase the base resume; never invent experience. A skill missing from the base resume may be added **only if** it is critical for the vacancy (required or strongly preferred) **and** the user can learn it at an overview level **within two weeks**; it goes only into the skills section, is highlighted and comes with a "what to learn" note.
   7. **Review** each tailored resume; on "rework" tailor again (max 2 rounds), then keep the best version with the reviewer's issues attached.
@@ -253,6 +253,6 @@ The **MVP is complete after S6**: every use case in this document is covered.
 | G11 | Vacancy statuses in the vision cover only packages | Full set: *prepared, applied, skipped, skipped by filter, failed* |
 | G13 | A vacancy already applied to must not come back in later runs or other profiles | **Applied registry** (UC-15) filled when the user marks *applied*; de-duplication checks it for every profile; the **re-apply period** in Settings (default 90 days) controls when a vacancy may come back |
 | G14 | Added-skill rule had "a couple of days" as the learning limit | Changed to **two weeks** of overview-level learning (vision §9) |
-| G12 | The dossier should not be limited to LinkedIn and Glassdoor | Separate **vacancy sources** (LinkedIn, Glassdoor) from **dossier sources** (start with LinkedIn and Glassdoor, extensible); each dossier fact links to its source |
+| G12 | The dossier should not be limited to LinkedIn and Glassdoor | Separate **vacancy sources** (LinkedIn, Glassdoor) from **dossier sources** — MVP: LinkedIn, Glassdoor, company website, web search; extensible. Each dossier fact links to its source. Web search costs ~$0.08 per run (within the LLM cap) |
 
 Values left to NFR (#7): default schedule, browsing limits per run, file size limit, retention period.
