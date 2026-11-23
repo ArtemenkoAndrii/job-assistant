@@ -24,7 +24,7 @@
 | ID | Use case | Primary actor | Slice |
 |---|---|---|---|
 | UC-01 | Sign in | User | Skeleton #22 |
-| UC-02 | Manage personal settings | User | S1 #26 |
+| UC-02 | Manage settings | User | S1 #26 |
 | UC-03 | Create a search profile | User | S1 #26 |
 | UC-04 | Edit, activate, deactivate or delete a profile | User | S1 #26 |
 | UC-05 | Run a profile now | User | S2 #27 |
@@ -52,29 +52,30 @@
   - A2. The account is not the allowed owner account (MVP is single-user) → access denied.
 - **Result:** an authenticated session on desktop or mobile.
 
-### UC-02 Manage personal settings
+### UC-02 Manage settings
 
 - **Actor:** User. **Precondition:** signed in.
-- **Main flow:**
-  1. The user opens Settings.
-  2. Edits the notification email and the **application data** that does not depend on the profile: phone number, current location, relocation willingness, work permit and visa sponsorship status, notice period, languages, LinkedIn profile URL.
-  3. Edits the **company blacklist** (companies always skipped, e.g. the current employer).
-  4. Saves.
-- **Alternative flows:**
-  - A1. Invalid email or phone → field error, nothing saved.
-  - A2. Application data missing → runs still work; packages show "fill in Settings" where an answer needs it.
-- **Result:** settings used by every profile.
+- **Main flow:** the user opens Settings, changes the notification email and saves.
+- **Alternative flows:** A1. Invalid email → field error, nothing saved.
+- **Result:** summaries and alerts go to the chosen address.
+
+All job-search data lives in the two files of each profile (UC-03), as in the vision.
 
 ### UC-03 Create a search profile
 
 - **Actor:** User. **Precondition:** signed in, fewer than 3 profiles.
 - **Main flow:**
   1. The user clicks "New profile" and gives it a name.
-  2. Uploads a resume (.pdf, .txt, .md).
-  3. Uploads a requirements file (.pdf, .txt, .md): role, stack, seniority, salary expectation, location and work type, optional tailoring notes (e.g. "emphasize Kotlin").
-  4. Optionally sets years of experience per key technology (used for form answers).
-  5. The system extracts the text of both files and shows a short preview (role, stack, salary, location) so the user can see it was read correctly.
-  6. The user saves; the profile is created **inactive**.
+  2. Uploads the **base resume** (.pdf, .txt, .md). It is the source for tailoring **and** for contact data in answers: name, phone, email, LinkedIn URL, current location, languages.
+  3. Uploads the **requirements file** (.pdf, .txt, .md) — what the user is looking for, plus what a resume usually does not contain:
+     - positions (e.g. Lead Backend (Java), Solution Architect), stack, seniority;
+     - salary range (from–to);
+     - work type and location (remote, hybrid, city);
+     - companies to exclude (e.g. the current employer);
+     - work permit / visa sponsorship, notice period, relocation willingness;
+     - optional tailoring notes (e.g. "emphasize Kotlin") and overrides (e.g. years with a technology).
+  4. The system extracts both files and shows a short preview — contacts from the resume; positions, salary, location and exclusions from the requirements — so the user can see they were read correctly.
+  5. The user saves; the profile is created **inactive**.
 - **Alternative flows:**
   - A1. Already 3 profiles → "New profile" is disabled with an explanation.
   - A2. Unsupported format, empty or unreadable file (e.g. scanned PDF) → error, nothing saved.
@@ -118,7 +119,7 @@
 - **Main flow:**
   1. **Search** LinkedIn and Glassdoor with the profile's criteria, within the browsing limits.
   2. **Deduplicate**: drop vacancies already processed for this profile; merge the same vacancy found on both sources.
-  3. **Hard-filter**: salary, location, work type, stack, blacklist. Rejected vacancies are kept with the reason (*skipped by filter*).
+  3. **Hard-filter**: salary, location, work type, stack, excluded companies. Rejected vacancies are kept with the reason (*skipped by filter*).
   4. **Research** each remaining employer (dossier from LinkedIn and Glassdoor; one dossier per company per run).
   5. **Re-filter** with the dossier.
   6. **Tailor** the resume for each remaining vacancy.
@@ -170,7 +171,7 @@
   3. Downloads the resume PDF and copies answers as needed.
   4. Opens the link and applies on the employer's channel (outside Job Finder).
 - **Alternative flows:**
-  - A1. An answer needs data missing in Settings → shown as "fill in Settings"; after filling, answers are regenerated without re-tailoring.
+  - A1. An answer needs data that is in neither file (e.g. notice period) → shown as "add to the requirements file"; after the file is updated, answers are regenerated without re-tailoring.
 - **Result:** everything needed to apply in a few minutes, on desktop or mobile.
 
 ### UC-12 Reject an added skill
@@ -203,7 +204,7 @@ Backbone (left to right) is the user's journey; each column lists the stories, g
 | | **Set up** | **Run** | **Review** | **Apply & track** | **Control** |
 |---|---|---|---|---|---|
 | **Skeleton #22** | Sign in (UC-01) | | | | |
-| **S1 #26** | Personal settings, blacklist (UC-02); create profile with preview (UC-03); edit, activate, delete (UC-04) | | | | |
+| **S1 #26** | Settings (UC-02); create profile from two files with preview (UC-03); edit, activate, delete (UC-04) | | | | |
 | **S2 #27** | | Run now (UC-05); search LinkedIn + Glassdoor, dedupe, hard filter (UC-07 steps 1–3); blocked run handling (UC-08) | Vacancy list of a run with statuses and skip reasons (basic UC-10) | | Browsing limits |
 | **S3 #28** | | Employer dossier, re-filter (UC-07 steps 4–5) | Dossier on the vacancy page | | |
 | **S4 #29** | | Tailor + review loop (UC-07 steps 6–7) | Tailored resume with highlighted added skills | | |
@@ -217,9 +218,9 @@ The **MVP is complete after S6**: every use case in this document is covered.
 | # | Gap | Proposed resolution |
 |---|---|---|
 | G1 | The vision has no way to start a run by hand, but slices S2–S5 need runs before the scheduler (S6) exists | Add **"Run now"** (UC-05) to the MVP scope |
-| G2 | Where application data lives was an open question (vision §13 Q2) | **Personal data** (phone, location, work permit, notice period, languages, LinkedIn URL) in **Settings**, shared by all profiles; **profile-specific data** (salary expectation, location and work type preferences, years per technology) in the **profile** / requirements file |
+| G2 | Where application data lives was an open question (vision §13 Q2) | Keep the **two files per profile** from the vision: contacts (phone, email, LinkedIn, current location, languages) come from the **resume**; what a resume lacks (work permit / visa, notice period, relocation, salary range) goes into the **requirements file**. Years per technology are derived from the resume, with overrides in the requirements. Settings hold only the notification email |
 | G3 | Where tailoring rules live (vision §13 Q2) | The rules of vision §9 are **system-wide and fixed**; each profile can add free-text **tailoring notes** in the requirements file |
-| G4 | Blacklist scope unclear | **User-level** (Settings), applies to all profiles |
+| G4 | Where the company blacklist lives | In the **requirements file** of each profile ("companies to exclude") |
 | G5 | The same vacancy can appear on LinkedIn and Glassdoor (seen in spike #2) | Merge into one vacancy within a run; keep both links |
 | G6 | The same vacancy can match two profiles | Deduplicate **per profile**: each profile gets its own package (different resume) |
 | G7 | What happens to a package when the user rejects an added skill | Regenerate, review again, update the package (UC-12) |

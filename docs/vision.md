@@ -94,9 +94,9 @@ The browser is used **read only**: the system searches and reads vacancies and e
 
 ### Added to the original scope
 
-7. **Application data:** the answers forms ask for and a resume does not contain. Personal data — phone number, current location and relocation willingness, work permit / visa sponsorship, notice period, languages, LinkedIn URL — lives in **Settings** and is shared by all profiles; salary expectation, location and work type preferences and years of experience per technology live in the **profile**.
+7. **Application data:** answers to typical form questions come from the two profile files. Contacts (phone, email, LinkedIn, current location, languages) are taken from the **resume**; what a resume usually lacks — work permit / visa sponsorship, notice period, relocation willingness, salary range — is written in the **requirements file**.
 8. **Added-skill highlighting:** every skill added to a tailored resume is highlighted, with a short note on what to learn before the interview; the user can reject it.
-9. **Company blacklist:** companies that are always skipped (e.g. the current employer); one list for all profiles, in Settings.
+9. **Company blacklist:** companies that are always skipped (e.g. the current employer), listed in the requirements file.
 10. **Browsing limits:** maximum number of vacancies and pages opened per run, to stay a polite guest on the job boards.
 11. **Kill switch:** one action stops all runs immediately.
 12. **Summary email** after each run, listing the prepared packages.
@@ -161,15 +161,15 @@ The browser is used **read only**: the system searches and reads vacancies and e
 3. How long are runs, dossiers and packages retained?
 4. What are the default browsing limits per run?
 
-Answered: LLM cap ($10/month, #3); which channels can be automated and what the MVP does (prepare packages, manual submission, #4); where application data and tailoring rules live (Settings, profile and fixed system rules with per-profile tailoring notes — [use cases](requirements/use-cases.md) #6).
+Answered: LLM cap ($10/month, #3); which channels can be automated and what the MVP does (prepare packages, manual submission, #4); where application data and tailoring rules live (the two profile files; fixed system rules plus per-profile tailoring notes — [use cases](requirements/use-cases.md) #6).
 
 ## 14. Glossary
 
 | Term | Meaning |
 |---|---|
-| **Search profile** | A resume + requirements pair with application data, its own schedule and history; up to 3 per user |
-| **Requirements file** | User's criteria for vacancies: role, stack, salary, location / remote, optional tailoring notes |
-| **Application data** | Profile answers that forms ask for and a resume does not contain (phone, salary expectation, notice period, work permit, …) |
+| **Search profile** | A base resume + requirements file pair with its own schedule and history; up to 3 per user |
+| **Requirements file** | What the user is looking for — positions, stack, salary range, location / work type, excluded companies — plus data a resume lacks (work permit, notice period, relocation) and optional tailoring notes |
+| **Application data** | Answers to typical form questions, taken from the resume (contacts) and the requirements file (salary, work permit, notice period, …) |
 | **Run** | One execution of the pipeline for one search profile |
 | **Source** | Where vacancies and employer information come from; MVP: LinkedIn and Glassdoor |
 | **Vacancy** | A job posting found in a source |
