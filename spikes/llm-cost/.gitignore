@@ -1,0 +1,3 @@
+# Personal data and API outputs - never commit
+results/
+__pycache__/

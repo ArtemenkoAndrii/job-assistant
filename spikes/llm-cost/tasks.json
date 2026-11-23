@@ -1,0 +1,10 @@
+{
+  "_comment": "Replace the placeholders with real URLs before running. Each task runs once per model.",
+  "tasks": [
+    {"id": "linkedin_search", "kind": "search",
+     "url": "https://www.linkedin.com/jobs/search-results/?keywords=Lead%20Software%20Engineer&f_TPR=r604800"},
+    {"id": "linkedin_vacancy_1", "kind": "vacancy", "url": "https://www.linkedin.com/jobs/view/<job id>/"},
+    {"id": "linkedin_vacancy_2", "kind": "vacancy", "url": "https://www.linkedin.com/jobs/view/<job id>/"},
+    {"id": "glassdoor_company", "kind": "company", "url": "https://www.glassdoor.es/Opiniones/<Name>-Opiniones-E<id>.htm"}
+  ]
+}

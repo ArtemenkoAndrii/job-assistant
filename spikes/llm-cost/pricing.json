@@ -1,0 +1,9 @@
+{
+  "_source": "Official pricing pages, checked 2026-11-23. USD per 1M tokens, short-context rates. Model ids: verify with `python measure.py --list-models`.",
+  "luna":  {"provider": "openai", "model": "gpt-6-luna",    "input": 0.10, "cached_input": 0.01, "output": 0.50},
+  "terra": {"provider": "openai", "model": "gpt-6.1-terra", "input": 1.00, "cached_input": 0.05, "output": 5.00},
+  "sol":   {"provider": "openai", "model": "gpt-6.2-sol",   "input": 2.00, "cached_input": 0.10, "output": 10.00},
+  "haiku": {"provider": "anthropic", "model": "claude-haiku-5-5", "input": 0.10, "cached_input": 0.01, "cache_write": 0.125, "output": 0.50,
+            "long_prompt": {"threshold_tokens": 100000, "input": 0.50, "cached_input": 0.05, "cache_write": 0.625, "output": 2.50}},
+  "sonnet": {"provider": "anthropic", "model": "claude-sonnet-5-5", "input": 2.00, "cached_input": 0.10, "cache_write": 2.50, "output": 10.00}
+}
