@@ -16,6 +16,7 @@
 | **Job Finder** | System | Runs the pipeline: search, filter, research, tailor, review, prepare packages, notify |
 | **Browser (A-1)** | External system | Remote browser with the user's LinkedIn and Glassdoor sessions, behind Cloudflare Access |
 | **Job boards** | External system | LinkedIn and Glassdoor, reached only through A-1, read only |
+| **Other dossier sources** | External system | Company websites, news, salary and review sites, web search — added over time |
 | **LLM provider** | External system | OpenAI models for agents |
 | **Email service** | External system | Delivers summary and alert emails |
 
@@ -120,7 +121,7 @@ All job-search data lives in the two files of each profile (UC-03), as in the vi
   1. **Search** LinkedIn and Glassdoor with the profile's criteria, within the browsing limits.
   2. **Deduplicate**: drop vacancies already processed for this profile; merge the same vacancy found on both sources.
   3. **Hard-filter**: salary, location, work type, stack, excluded companies. Rejected vacancies are kept with the reason (*skipped by filter*).
-  4. **Research** each remaining employer (dossier from LinkedIn and Glassdoor; one dossier per company per run).
+  4. **Research** each remaining employer: one dossier per company per run, built from the configured **dossier sources** — first LinkedIn and Glassdoor, extensible to others (company website, news, salary and review sites, web search). Every fact keeps a link to its source.
   5. **Re-filter** with the dossier.
   6. **Tailor** the resume for each remaining vacancy.
   7. **Review** each tailored resume; on "rework" tailor again (max 2 rounds), then keep the best version with the reviewer's issues attached.
@@ -130,7 +131,7 @@ All job-search data lives in the two files of each profile (UC-03), as in the vi
   - A1. Nothing found or everything filtered out → the run completes with zero packages; the summary says so.
   - A2. A single vacancy or employer page fails (page did not load, unknown layout) → that vacancy is marked *failed* with the reason; the run continues.
   - A3. Session expired, CAPTCHA, Cloudflare challenge or restriction notice → **blocked run**, UC-08.
-  - A4. Glassdoor blocked but LinkedIn works → continue without Glassdoor data; the dossier marks what is missing.
+  - A4. One source blocked or unavailable (e.g. Glassdoor challenge) → continue with the other sources; the dossier marks what is missing.
   - A5. LLM cost cap reached → stop before the next LLM step; run status *stopped: budget*; the user is alerted.
   - A6. Kill switch turned on during the run → stop after the current step; status *stopped*.
 - **Result:** packages for matching vacancies and a complete record of what was skipped, failed and why.
@@ -228,5 +229,6 @@ The **MVP is complete after S6**: every use case in this document is covered.
 | G9 | Review loop could run forever | Max 2 rework rounds, then keep the best version with the reviewer's notes |
 | G10 | LLM cap ($10/month) needs a behaviour when reached | Stop the run before the next LLM step, alert the user (UC-07 A5) |
 | G11 | Vacancy statuses in the vision cover only packages | Full set: *prepared, applied, skipped, skipped by filter, failed* |
+| G12 | The dossier should not be limited to LinkedIn and Glassdoor | Separate **vacancy sources** (LinkedIn, Glassdoor) from **dossier sources** (start with LinkedIn and Glassdoor, extensible); each dossier fact links to its source |
 
 Values left to NFR (#7): default schedule, browsing limits per run, file size limit, retention period.

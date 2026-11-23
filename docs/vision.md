@@ -69,7 +69,7 @@ For each active search profile, on a schedule:
 1. **Search** vacancies in the sources: LinkedIn and Glassdoor.
 2. **Deduplicate** against previously processed vacancies.
 3. **Hard-filter** obvious mismatches: salary below expectations, wrong location or work format, stack too far from the user's, blacklisted companies.
-4. **Research the employer** on LinkedIn and Glassdoor and build a short dossier: what the company does, rating, pros and cons from reviews, salary levels, interview difficulty and questions.
+4. **Research the employer** and build a short dossier: what the company does, rating, pros and cons from reviews, salary levels, interview difficulty and questions. Sources start with LinkedIn and Glassdoor and can be extended (company website, news, salary and review sites, web search); every fact links to its source.
 5. **Re-filter** using the dossier (e.g. the realistic salary turns out to be too low).
 6. **Tailor a resume** for each remaining vacancy, based on the user's resume and configured rules. Critical missing skills may be added under the rules in section 9; each addition is highlighted.
 7. **Review** each tailored resume by a separate reviewer agent; send it back for rework if a rule is violated.
@@ -87,7 +87,7 @@ The browser is used **read only**: the system searches and reads vacancies and e
 1. The user lands on a personal page and uploads a resume (.pdf, .txt, .md) and a vacancy requirements file (.pdf, .txt, .md): stack, expected salary, office location or remote, etc.
 2. Each resume + requirements pair is a **search profile**; the user can have up to 3.
 3. A search profile can be created, activated, deactivated and deleted.
-4. Vacancies and employer information come from **LinkedIn and Glassdoor**.
+4. Vacancies come from **LinkedIn and Glassdoor**; employer information starts with the same two and the set of dossier sources is extensible.
 5. For each profile the user sees the history of runs: date, vacancies found, packages prepared, vacancies applied to.
 6. Clicking a run opens a table of vacancies; each row opens the **application package**: dossier, tailored resume (PDF, added skills highlighted), answers, cover note, link and channel, and the vacancy status (*prepared*, *applied*, *skipped*, *skipped by filter*, *failed*).
 6a. **Run now:** the user can start a run of any profile by hand, in addition to the schedule.
@@ -156,7 +156,8 @@ The browser is used **read only**: the system searches and reads vacancies and e
 
 ## 13. Open questions
 
-1. Are "direct referrals" and general web search (e.g. Google) sources for a later version?
+1. Are "direct referrals" and general web search (e.g. Google) vacancy sources for a later version?
+1a. Which dossier sources beyond LinkedIn and Glassdoor go into the MVP?
 2. How often should runs be scheduled by default (daily, several times a week)?
 3. How long are runs, dossiers and packages retained?
 4. What are the default browsing limits per run?
@@ -171,7 +172,8 @@ Answered: LLM cap ($10/month, #3); which channels can be automated and what the 
 | **Requirements file** | What the user is looking for — positions, stack, salary range, location / work type, excluded companies — plus data a resume lacks (work permit, notice period, relocation) and optional tailoring notes |
 | **Application data** | Answers to typical form questions, taken from the resume (contacts) and the requirements file (salary, work permit, notice period, …) |
 | **Run** | One execution of the pipeline for one search profile |
-| **Source** | Where vacancies and employer information come from; MVP: LinkedIn and Glassdoor |
+| **Vacancy source** | Where vacancies are found; MVP: LinkedIn and Glassdoor |
+| **Dossier source** | Where employer information is taken from; starts with LinkedIn and Glassdoor, extensible (company website, news, salary and review sites, web search) |
 | **Vacancy** | A job posting found in a source |
 | **Dossier** | Short employer research attached to a vacancy |
 | **Tailored resume** | Resume adapted to a specific vacancy |
