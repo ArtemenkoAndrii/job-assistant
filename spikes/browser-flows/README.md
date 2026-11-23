@@ -96,6 +96,7 @@ This writes `recordings/01-linkedin-search/calls.jsonl` and `summary.md`.
 | 2 | LinkedIn vacancy details | `prompts/02-linkedin-details.md` |
 | 3 | Glassdoor search + employer research | `prompts/03-glassdoor.md` |
 | 4 | Application dry-run (3-5 flows) | `prompts/04-apply-dry-run.md` |
+| 5 | Channel census for #4 (read only, ~25 + 10 vacancies) | `prompts/05-channel-census.md` |
 
 ## 5. Write up findings
 
