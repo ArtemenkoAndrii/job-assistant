@@ -1,0 +1,23 @@
+# Outbound domains allowed from the dev container (one per line; # starts a comment).
+# GitHub IP ranges are added separately from https://api.github.com/meta.
+# Keep this list short: every entry widens what an agent can reach. Changes go through a PR.
+
+# Claude Code: API, login, telemetry
+api.anthropic.com
+claude.ai
+console.anthropic.com
+statsig.anthropic.com
+sentry.io
+
+# Package registries
+registry.npmjs.org
+pypi.org
+files.pythonhosted.org
+
+# OpenAI API (runtime models, spike and eval scripts)
+api.openai.com
+
+# VS Code server and extensions
+update.code.visualstudio.com
+marketplace.visualstudio.com
+vscode.blob.core.windows.net
