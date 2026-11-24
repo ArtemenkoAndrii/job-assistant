@@ -62,11 +62,11 @@ The web app runs as a Cloud Run **service**; the worker as a Cloud Run **job**, 
 
 | Component | Service | Configuration |
 |---|---|---|
-| Web app | Cloud Run **service** `jobfinder-web` | Image entry point `uvicorn`; request-based billing; min instances 0, max 2; 1 vCPU, 512 MiB; startup CPU boost on; public HTTPS on `*.run.app`, the app itself requires sign-in (#17) |
+| Web app | Cloud Run **service** `jobfinder-web` | Image entry point `uvicorn`; request-based billing; min instances 0, max 2; 1 vCPU, 512 MiB (raised if PDF regeneration with WeasyPrint needs more, measured in #22); startup CPU boost on; public HTTPS on `*.run.app`, the app itself requires sign-in (#17) |
 | Run worker | Cloud Run **job** `jobfinder-worker` | Entry point `python -m jobfinder.worker`; 1 task, parallelism 1; 1 vCPU, 1 GiB; task timeout **2 h**; **max retries 0** (a blocked run is not retried, NFR-A2) |
-| Scheduler | Cloud Scheduler, **one** job | Every hour, starts `jobfinder-worker`. The worker reads which profiles are due (per-profile schedule, NFR-R1) and exits in seconds if none are |
+| Scheduler | Cloud Scheduler, **one** job | Every hour at minute 30 (so the default Sat 01:30 slot is exact), starts `jobfinder-worker`. The worker reads which profiles are due (per-profile schedule, NFR-R1) and exits in seconds if none are. A blocked or failed run does not make a profile due again: it waits for its next scheduled slot (NFR-A2, no retry loop) |
 | Run queue | rows in the database (#18) | "Run now" adds a queued run and starts a job execution through the Cloud Run Admin API. A lease in the database ensures only one worker executes runs (NFR-R2); a second execution finds the lease taken and exits |
-| Secrets | Secret Manager | A-1 client id and secret, OpenAI key, email key, session key — 5 secrets |
+| Secrets | Secret Manager | A-1 client id and secret, OpenAI key, email key, session key — 5 secrets. Rotation (NFR-S5) destroys the old version, so the free 6 active versions are not exceeded (#16) |
 | Images | Artifact Registry, `us-central1` | Cleanup policy: keep the last 3 images |
 | Logs and metrics | Cloud Logging and Monitoring | 30-day retention (NFR-P3) |
 | Cost control | Cloud Billing budget **$5/month** | Alerts at 50%, 90% and 100% to the owner (NFR-C1) |
@@ -94,7 +94,17 @@ The A-1 token is readable only by `worker` (architecture §2).
 | Egress | page snapshots and LLM traffic, well under 1 GiB | free (1 GiB within North America) |
 | **Hosting before storage (#18)** | | **≈ $0–0.10** |
 
-The worst case in the NFRs — 3 profiles daily, every run the full 90 minutes — is ~490,000 vCPU-s, about **$4.6/month** above the free tier: under the cap but close to it. The worker mostly waits on the network (pauses, A-1, LLM), so 0.5 vCPU would halve that; the size is tuned with real runs in #22.
+The worst case in the NFRs — 3 profiles daily, every run the full 90 minutes — is ~490,000 vCPU-s, about **$4.6/month** above the free tier: under the cap, but it would leave almost nothing for storage (#18). The worker mostly waits on the network (pauses, A-1, LLM), so 0.5 vCPU would bring the same load to ~$0.1/month; below 1 vCPU Cloud Run allows at most 512 MiB, so this is measured in #22 before it is changed.
+
+**Infra vs LLM** (LLM from spike #3 and NFR-C5: ~$0.15–0.25 per run incl. web search; hosting from the table above, storage #18 not included):
+
+| Load | Runs / month | Hosting | LLM | Within caps? |
+|---|---|---|---|---|
+| 1 profile weekly (default) | ~4.3 | ≈ $0–0.10 | ≈ $0.65–1.10 | Yes: hosting ≤ $5, LLM ≤ $10 |
+| 1 profile daily | ~30 | ≈ $0–0.10 | ≈ $4.50–7.50 | Yes; LLM alert at $5 may fire |
+| 3 profiles daily, full 90 min (worst case) | ~90 | ≈ $4.6 | ≈ $13.50–22.50 | **No — the LLM cap is reached first**; the budget guard stops runs (*stopped: budget*, NFR-C4) |
+
+The LLM budget, not hosting, is what limits how often runs can happen.
 
 Out of scope: database and file storage (#18), sign-in (#17), Terraform layout and CI deployment (#16), email (#21), a custom domain.
 
