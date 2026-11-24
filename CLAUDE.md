@@ -30,6 +30,7 @@ No product code yet — build, test and lint commands are added here with the st
 
 - ADR-0001 Record architecture decisions
 - ADR-0002 Development environment and Claude Code isolation
+- ADR-0003 Branching strategy
 
 A spec must not contradict an accepted ADR; if it has to, stop and propose a new ADR.
 
