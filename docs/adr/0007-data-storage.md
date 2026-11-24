@@ -42,7 +42,7 @@ Requirements:
 **D1. Firestore (Native mode, Standard edition) in the `job-finder` project.**
 - Good: serverless, no instance to pay for. The first database in a project gets the free tier: 1 GiB stored, 50,000 reads, 20,000 writes and 20,000 deletes a day. Our volume is a tiny fraction of that.
 - Good: TTL policies delete expired documents automatically; scheduled backups; transactions for the run lease; IAM per service account. The owner knows it.
-- Bad: a document database — queries need planned indexes, no joins; TTL deletes, PITR, backups and restores are billed outside the free tier (cents at our size).
+- Bad: a document database — queries need planned indexes, no joins; TTL deletes count against the normal delete quota; PITR, backups and restores are billed outside the free tier (cents at our size).
 
 **D2. Cloud SQL (PostgreSQL).**
 - Good: relational, SQL, mature tooling.
@@ -61,38 +61,65 @@ Requirements:
 
 ## Decision
 
-**D1 + F1: Firestore (Native, Standard) and one private Cloud Storage bucket, both in the `job-finder` project, `us-central1`.** The project is linked to Firebase for console access by the owner only; no Firebase client SDK or security rules are used — the app accesses data only from the server with service accounts.
+**D1 + F1: Firestore (Native, Standard) and one private Cloud Storage bucket, both in the `job-finder` project, `us-central1`.** The project is linked to Firebase for console access by the owner only. No Firebase client SDK is used — the app accesses data only from the server with service accounts — so Firestore and Storage **security rules deny all client access** (deployed by Terraform, #16).
 
 **Firestore collections** (one document per entity; IDs are random unless noted):
 
 | Collection | Holds | Personal data | Retention |
 |---|---|---|---|
 | `settings/owner` | notification email, re-apply period, kill switch, paused job boards | email | until deleted |
-| `profiles` | name, active, schedule, file paths, extracted fields, tailoring notes | **resume content** | until the profile is deleted |
+| `profiles` | name, active, schedule, file paths, fields extracted from the two files (incl. tailoring notes from the requirements file) | **resume content** | until the profile is deleted |
 | `runs` | profile, trigger, status (`queued`, `running`, `completed`, `blocked`, `stopped`, `failed`), counts, cost per step, duration, errors | — | 12 months (`expire_at`) |
-| `runs/{id}/vacancies` | source, job id, link, company, title, normalised match key, status, skip reason | — | with the run |
+| `vacancies` (top-level, not a subcollection: TTL does not delete subcollections) | profile id, run id, source, job id, link, company, title, `match_key`, status, skip reason | — | 12 months (`expire_at`, same as its run) |
 | `dossiers` | company, facts with source links, missing sources | — | 90 days (`expire_at`), cleared when applied |
 | `packages` | vacancy, PDF path, added skills (+ rejected), answers, cover note, reviewer notes, channel | **resume content** | 90 days (`expire_at`), cleared when applied |
-| `applied` | position, company, source, link, channel, profile, date, package; match keys (source + job id, normalised company + title, UC-15) | links to the package | until the owner deletes it |
+| `applied` | position, company, source, link, channel, profile, date, package id; `match_key` (source + job id) and `title_key` (normalised company + title, UC-15) | links to the package | until the owner deletes it |
 | `cost_ledger/{yyyy-mm}`, `page_loads/{board}-{date}` | LLM cost per month and step; page loads per board per day | — | 12 months |
 | `locks/worker` | the run lease: holder (job execution id), `expires_at` | — | — |
 
-**Retention (NFR-P3):** a TTL policy on the field `expire_at`. Marking a vacancy *applied* clears `expire_at` on its package and dossier, so they live as long as the registry entry. Firestore deletes expired documents in the background, not at the exact moment; that is fine for retention. Where a deadline matters (profile deletion, NFR-P4) the app deletes explicitly instead of relying on TTL.
+The cost ledger, counters and the lock are operational records without personal data; NFR-P1 lists them since this ADR.
+
+**Retention (NFR-P3):** a TTL policy on the field `expire_at` (exempted from indexing). Every document that expires carries its own `expire_at`; nothing relies on a parent being deleted.
+
+- Marking a vacancy *applied* clears `expire_at` on its package and dossier and moves its PDF to the `applied/` prefix, so they live as long as the registry entry.
+- Undoing *applied* (UC-13 A2) sets `expire_at` back to 90 days after the package was created (or deletes it at once if that date has passed) and moves the PDF back to `pending/`.
+- Deleting a registry entry (UC-15 A1) deletes its package, its dossier if no other package uses it, and the PDF. Firestore deletes expired documents in the background, not at the exact moment; that is fine for retention. Where a deadline matters (profile deletion, NFR-P4) the app deletes explicitly instead of relying on TTL.
 
 **Files:** bucket `job-finder-files-<suffix>`, uniform bucket-level access, public access prevention on, no public or signed links (downloads go through the web app after sign-in).
 
 | Path | Holds | Retention |
 |---|---|---|
 | `profiles/{profile_id}/resume.*`, `.../requirements.*` | original uploads (≤ 5 MB, .pdf/.txt/.md) | until the profile is deleted |
-| `packages/{package_id}/resume.pdf` | tailored resume | lifecycle rule: delete after 90 days, except objects with the `applied=true` metadata flag, which the app sets on *applied* |
+| `packages/pending/{package_id}.pdf` | tailored resume, not applied to | lifecycle rule: `age` 90 days + `matchesPrefix: packages/pending/` → delete |
+| `packages/applied/{package_id}.pdf` | tailored resume of an applied vacancy | no lifecycle rule; deleted with the registry entry |
 
-Soft delete stays at the default 7 days (recovers mistakes; matches the 7-day backup expiry in NFR-P4).
+Lifecycle rules cannot match custom metadata, so the state is the prefix.
 
-**Deletion (NFR-P4):** deleting a profile deletes, in one request, its documents (profile, runs with vacancies, packages, dossiers used only by it), and its files; applied-registry entries of that profile are deleted too, after a confirmation in the UI. Backups and soft-deleted objects expire within 7 days.
+Soft delete stays at the default 7 days (recovers mistakes; matches the 7-day backup expiry in NFR-P4). It is the only protection for files: uploads are the owner's own documents (they keep the originals) and PDFs can be regenerated, so files get no separate backup — NFR-A6's daily backup covers Firestore.
+
+**Deletion (NFR-P4):** deleting a profile deletes at once its profile document, runs, vacancies, packages, dossiers used only by it, and its files (uploads and PDFs). Its applied-registry entries are **kept without the package** (the package id is cleared): they hold no resume content and still stop the same vacancies from coming back in other profiles (UC-07 step 2). The UI says so and offers to delete them too. Backups and soft-deleted objects expire within 7 days.
 
 **Backups (NFR-A6):** a daily Firestore scheduled backup kept 7 days. A restore drill once before the MVP release (NFR-A6).
 
-**Run queue and lease (ADR-0006):** "Run now" and the hourly tick create `runs` documents with status `queued`. A worker execution takes the lease in a Firestore transaction (`locks/worker` free or expired → set holder and `expires_at` = now + 10 min), renews it every few minutes during the run, and releases it at the end. If a worker crashes, the lease expires and the next execution takes over. A second execution that finds a valid lease exits at once.
+**Run queue and lease (ADR-0006):**
+
+- "Run now" and the hourly tick create `runs` documents with status `queued`; neither queues a run for a profile that already has one `queued` or `running`.
+- A worker execution takes the lease in a Firestore transaction (`locks/worker` free or expired → set holder and `expires_at` = now + 10 min). A second execution that finds a valid lease exits at once.
+- With the lease, it first marks runs left `running` by a crashed execution as `failed`, then executes queued runs oldest first until the queue is empty, then releases the lease.
+- A background task renews the lease every 2 minutes in a transaction that checks the holder. If renewal fails or finds another holder, the run stops at once (*stopped: lease lost*) and the worker exits without further writes.
+- CPU-heavy work (PDF rendering, parsing) runs in a thread, so the renewal task is never starved.
+
+**Write order (NFR-R5):** PDF upload → package document → run marked `completed` → summary email. A failure before the email leaves no email pointing to a missing package.
+
+**Indexes** (besides single-field defaults; `expire_at` exempted):
+
+| Query | Index |
+|---|---|
+| Runs of a profile, newest first (UC-10) | `runs`: `profile_id` + `created_at` desc |
+| Queue: oldest queued run | `runs`: `status` + `created_at` |
+| Already processed for this profile (UC-07 step 2) | `vacancies`: `profile_id` + `match_key` |
+| Vacancies of a run (UC-10) | `vacancies`: `run_id` + `status` |
+| Registry lookups (UC-07 step 2, UC-15) | `applied`: `match_key`; `applied`: `title_key` + `applied_at` |
 
 **Access (NFR-S4):** service accounts `web` and `worker` get `roles/datastore.user` on the project and `roles/storage.objectUser` on the bucket only; `deployer` gets no data access. The owner reads data in the Firebase console with their own account.
 
@@ -121,7 +148,7 @@ Out of scope: sign-in and the owner's account record (#17); infrastructure code 
 - Negative: TTL deletion is eventual; where deletion time matters (profile deletion), the app deletes explicitly.
 - Negative: tests need fakes or the Firestore emulator; the dev container has no cloud credentials by design (ADR-0002).
 - Follow-ups:
-  - #16: Terraform for the Firestore database, TTL policy, backup schedule, bucket with lifecycle rule and soft delete, IAM bindings; Firebase link.
+  - #16: Terraform for the Firestore database, TTL policy, indexes, backup schedule, deny-all security rules, bucket with lifecycle rule and soft delete, IAM bindings; Firebase link.
   - #22: repositories for `settings`, `runs` and the lease; deploy; restore drill before release.
   - #17: where the owner's identity and session live.
   - Update [architecture](../architecture.md) Q5 and §5 on acceptance.

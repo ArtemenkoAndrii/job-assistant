@@ -71,7 +71,7 @@ The MVP processes only the owner's own data, but it is built as if it had other 
 
 | ID | Requirement | Target | Verification |
 |---|---|---|---|
-| NFR-P1 | Data minimisation | Store only: account email, settings, profile files, runs, vacancies, dossiers, packages, applied registry. No copies of full job-board pages beyond what a package shows | Data model review |
+| NFR-P1 | Data minimisation | Store only: account email, settings, profile files, runs, vacancies, dossiers, packages, applied registry, and operational records without personal data (cost ledger, page-load counters, run lease — ADR-0007). No copies of full job-board pages beyond what a package shows | Data model review |
 | NFR-P2 | Data location | **Any region**; the region is chosen to stay within the free tier (ADRs #15, #18). Revisit if the product gets other users | IaC check |
 | NFR-P3 | Retention | Packages and dossiers of vacancies not applied to: **90 days**. Applied registry and its packages: until the user deletes them (needed for the re-apply period). Run records without personal data: 12 months. Logs: **30 days**, without resume content | Scheduled cleanup job; test |
 | NFR-P4 | Deletion | Deleting a profile removes its files, runs and packages within **24 h**; backups expire within 7 days | Test + backup policy |
