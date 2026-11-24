@@ -11,6 +11,7 @@ AI assistant that finds vacancies on LinkedIn and Glassdoor, researches employer
 | `docs/adr/` | Architecture decisions — read the index before designing anything |
 | `docs/changes/<issue>-<slug>/` | intent.md, spec.md, plan.md per change ([how](docs/changes/README.md)) |
 | `docs/templates/` | Templates for intent, spec, plan |
+| `.claude/skills/` | Spec-writing process and policy skills (security, cost, mobile UX, resume rules) |
 | `docs/spikes/`, `spikes/` | Feasibility findings and throwaway spike kits — not product code |
 | `.devcontainer/` | The only supported dev environment ([ADR-0002](docs/adr/0002-dev-environment.md)) |
 
@@ -21,7 +22,7 @@ No product code yet — build, test and lint commands are added here with the st
 ## Workflow
 
 1. Work starts from a GitHub issue; branch name `<issue>-<short-slug>`.
-2. Product changes go **intent → spec → plan → code**. Plan in plan mode first; do not write code before the plan is approved.
+2. Product changes go **intent → spec → plan → code**. Specs follow the `writing-specs` skill. Plan in plan mode first; do not write code before the plan is approved.
 3. Open a PR with `Closes #N`; the owner reviews and merges. Never push to `main`.
 4. If the implementation diverges from `plan.md`, update it in the same commit.
 

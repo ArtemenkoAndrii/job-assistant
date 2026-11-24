@@ -35,7 +35,7 @@ claude
 Log in when asked (the login is stored in a Docker volume and survives rebuilds). Then check:
 
 - `/sandbox` — the sandbox is **enabled**; if Claude Code exits at start with a sandbox error, see Troubleshooting.
-- `curl -sI https://example.com` fails, `gh api zen` works — the firewall is active.
+- `curl -sI https://example.com` fails, `curl -s https://api.github.com/zen` returns a short phrase — the firewall is active.
 
 ## What is not in the container, on purpose
 
