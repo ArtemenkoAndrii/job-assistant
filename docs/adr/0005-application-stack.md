@@ -9,7 +9,7 @@
 
 ## Context
 
-[ADR-0004](0004-agent-runtime.md) fixed the agent runtime: Pydantic AI with OpenAI, the agent loop in the worker, `BrowserGateway` over one MCP session. The owner chose **Python** for the product code: it is the language they review most comfortably, and it has the richest agent and MCP libraries.
+[ADR-0004](0004-agent-runtime.md) fixed the agent runtime: Pydantic AI with OpenAI, the agent loop in the worker, `BrowserGateway` over one MCP session. The owner chose **Python** for the product code (decided with ADR-0004, so the language is not compared again here): it is the language they review most comfortably, and it has the richest agent and MCP libraries.
 
 Still open: Python version, packaging, web framework and UI approach, libraries for PDFs, the tools behind `lint`, `test` and `build`, the layout of `apps/`, and the toolchain in the dev container. The [architecture](../architecture.md) has two runtime parts — a web app and a long-running worker — that share the domain model, the LLM gateway and storage access.
 
@@ -45,6 +45,10 @@ Hosting (#15), storage (#18) and sign-in (#17) are not decided yet; this ADR mus
 
 **P1. uv** (project, lock file, Python install, tool runner) vs **P2. pip + venv + pip-tools** vs **P3. Poetry**. uv is one fast tool for all of it, with a lock file and Python version management; pip-tools needs several tools; Poetry is slower and does not manage Python versions.
 
+### MCP client (inside `BrowserGateway`)
+
+**M1. Official `mcp` Python SDK** (`ClientSession` over Streamable HTTP) vs **M2. FastMCP client** (higher-level, the one Pydantic AI's `MCPToolset` wraps) vs **M3. Pydantic AI `MCPToolset`** handed to the agent directly. M3 would let the model call A-1 without our checks, against ADR-0004. M1 and M2 both work; M1 is the reference implementation, follows the protocol revisions first and gives the gateway direct control of the session and headers.
+
 ### Type checking
 
 **T1. Pyright** (mature, fast, strict mode; Pydantic support) vs **T2. mypy** (slower; plugin for Pydantic) vs **T3. ty** (Astral's checker, very fast, but still 0.0.x with breaking changes between versions).
@@ -59,7 +63,8 @@ Hosting (#15), storage (#18) and sign-in (#17) are not decided yet; this ADR mus
 | Packages, Python, lock | **uv**, `uv.lock` committed | One tool; `uv sync --locked` reproduces the environment in the dev container, CI and the image |
 | Web | **FastAPI** + **Jinja2** templates + **htmx 2** | Server-rendered, no JS build. htmx 2 rather than 4: v4 (Aug 2026) changed defaults such as attribute inheritance, and agents know v2 far better; v2 stays supported. Revisit later |
 | CSS | **Pico CSS**, vendored | Classless, responsive and accessible by default; no build step |
-| Agents and LLM | **Pydantic AI** (`pydantic-ai-slim[openai]`), official **`mcp`** client | ADR-0004 |
+| Agents and LLM | **Pydantic AI** (`pydantic-ai-slim[openai]`) | ADR-0004 |
+| MCP client | official **`mcp`** SDK, used only inside `BrowserGateway` | M1 above |
 | Validation and settings | **Pydantic**, **pydantic-settings** | Same models in web, worker and agents |
 | HTTP client | **httpx** | Async; used by the SDKs above |
 | PDF out (tailored resume) | **WeasyPrint** (HTML/CSS → PDF) | Text-selectable PDF from the same templates; BSD licence (NFR-F4) |
@@ -68,7 +73,8 @@ Hosting (#15), storage (#18) and sign-in (#17) are not decided yet; this ADR mus
 | Lint and format | **Ruff** (`ruff check`, `ruff format --check`) | One fast tool, wide rule set |
 | Types | **Pyright** (standard mode; strict for `browser/`, `llm/`, `pipeline/`) | Strict where the safety-critical code is |
 | Tests | **pytest**, **pytest-asyncio**, Pydantic AI `TestModel`/`FunctionModel`, **respx** for HTTP fakes | No test calls OpenAI or A-1 (NFR-M5) |
-| Dependency scan | **pip-audit** on the lock file, in `lint.sh` | NFR-S7 |
+| Dependency scan | **pip-audit** on the locked requirements, a separate CI step (`scripts/audit.sh`, needs network) | NFR-S7. pip-audit has no severity filter, so any known vulnerability fails — stricter than NFR-S7; a finding that does not apply is ignored by ID with a reason in the file |
+| UI checks | **Playwright for Python** (headless Chromium) for screenshots at 360/768/1280 px and **axe-core** accessibility checks against the local app; **Lighthouse** in CI | NFR-U1, U3, U4; added with the first UI slice (#22/#26), tests only `localhost` |
 | Runtime packaging | **one container image**, two entry points: web (`uvicorn`) and worker (`python -m jobfinder.worker`) | Portable to any free tier; the platform is chosen in #15 |
 
 **Layout** — one application in `apps/`, one Python package with one folder per architecture component:
@@ -95,10 +101,11 @@ A second app (e.g. the fake MCP server for #24) gets its own folder in `apps/` w
 | Command | Runs |
 |---|---|
 | `scripts/build.sh` | `uv sync --locked`, then `uv build` for `apps/jobfinder` (the container image is built by CI/deploy, #16) |
-| `scripts/lint.sh` | existing repo checks + `ruff check`, `ruff format --check`, `pyright`, `pip-audit` |
+| `scripts/lint.sh` | existing repo checks + `ruff check`, `ruff format --check`, `pyright` (offline) |
+| `scripts/audit.sh` | `pip-audit` (online; CI step) |
 | `scripts/test.sh` | hook tests + `pytest` |
 
-**Dev container:** uv (pinned version) and Python 3.14 installed at image build, WeasyPrint's system libraries (Pango) added; no new domains in the firewall (PyPI is already allowed).
+**Dev container:** at image build, before the firewall exists: uv (pinned, from PyPI), Python 3.14 **installed by uv** (not Debian's `python3`), WeasyPrint's system libraries (Pango), and later Playwright's Chromium. At run time `UV_PYTHON_DOWNLOADS=never`, so nothing needs GitHub release downloads; `uv sync` uses PyPI, which is already allowed. No new domains in the firewall.
 
 Out of scope: hosting platform (#15), database and file storage (#18), sign-in (#17), email (#21).
 
@@ -107,7 +114,7 @@ Out of scope: hosting platform (#15), database and file storage (#18), sign-in (
 - Positive: one language and one image for everything; agents work with mainstream, typed libraries; tests run offline.
 - Positive: the UI needs no JavaScript build; pages work on a phone by default with Pico and server rendering.
 - Negative: sign-in, sessions and CSRF are assembled rather than built in — addressed in #17.
-- Negative: WeasyPrint pulls in system libraries, which makes the image larger (tens of MB).
+- Negative: WeasyPrint pulls in system libraries, which makes the image larger (tens of MB) and may slow a scale-to-zero cold start (NFR-A1 allows ≤ 10 s); #15 checks this, and the web and worker images can be split later if needed.
 - Negative: htmx 2 and Python 3.14 are one major version behind; upgrades are planned, not urgent.
-- Follow-ups (done in this PR after acceptance): Python toolchain in the dev container; `apps/jobfinder` skeleton with one passing test; `build.sh`, `lint.sh`, `test.sh` and CI updated; CLAUDE.md commands.
+- Follow-ups (done in this PR after acceptance): Python toolchain in the dev container; `apps/jobfinder` skeleton with one passing test; `build.sh`, `lint.sh`, `test.sh`, `audit.sh` and CI updated; CLAUDE.md commands and ADR index; [architecture](../architecture.md) Q1 and §2 note.
 - Follow-ups (other issues): #15 picks a platform that runs the image as a web service and as a 90-minute job; #18 decides the database and the repository implementation; #22 builds on this skeleton.
