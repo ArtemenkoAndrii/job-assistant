@@ -30,8 +30,30 @@ jobs:
           .devcontainer/install-gitleaks.sh "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      - name: Install uv and Python
+        run: |
+          python3 -m pip install --user "uv==0.13.9"
+          uv python install 3.14
+
+      - name: Build
+        run: scripts/build.sh
+
       - name: Lint
         run: scripts/lint.sh
 
       - name: Test
         run: scripts/test.sh
+
+      - name: Dependency audit
+        run: scripts/audit.sh
+
+      - name: Build container image
+        run: docker build --tag jobfinder:ci apps/jobfinder
+
+      - name: Smoke test the image
+        run: |
+          docker run --rm jobfinder:ci python -m jobfinder.worker
+          docker run -d --name web -p 8080:8080 jobfinder:ci
+          for i in $(seq 1 20); do curl -fsS http://localhost:8080/healthz && break; sleep 1; done
+          curl -fsS http://localhost:8080/healthz
+          docker rm -f web

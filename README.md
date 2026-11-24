@@ -21,9 +21,10 @@ The project is also a practice ground for building a product as an AI factory, f
 | `.devcontainer/` | Dev container with egress firewall and Claude Code sandbox |
 | `.claude/` | Claude Code project settings, skills, `verifier` subagent, guard hooks |
 | `.github/` | CI workflow and the `main` ruleset |
-| `scripts/`, `tests/` | `lint.sh`, `test.sh` and their tests |
+| `apps/jobfinder/` | The application (Python, [ADR-0005](docs/adr/0005-application-stack.md)) |
+| `scripts/`, `tests/` | `build.sh`, `lint.sh`, `test.sh`, `audit.sh` and the hook tests |
 
-Planned, created by their issues: `apps/` (product code, after the stack decision), `infra/` (Terraform, #16), `evals/` (datasets and eval suite, #24–#25).
+Planned, created by their issues: `infra/` (Terraform, #16), `evals/` (datasets and eval suite, #24–#25).
 
 ## Status
 

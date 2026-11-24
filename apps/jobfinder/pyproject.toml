@@ -1,0 +1,49 @@
+[project]
+name = "jobfinder"
+version = "0.1.0"
+description = "Finds vacancies, researches employers and prepares application packages (ADR-0005)."
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "fastapi>=0.165",
+    "uvicorn[standard]>=0.38",
+    "jinja2>=3.1",
+    "pydantic-settings>=2.11",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9",
+    "pytest-asyncio>=1.2",
+    "httpx>=0.28",
+    "ruff>=0.14",
+    "pyright>=1.1.414",
+    "pip-audit>=2.9",
+]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.14"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF", "ASYNC"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.pyright]
+pythonVersion = "3.14"
+include = ["src", "tests"]
+typeCheckingMode = "standard"
+strict = ["src/jobfinder/browser", "src/jobfinder/llm", "src/jobfinder/pipeline"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+# Starlette suggests a successor to httpx for TestClient; not adopted until its origin is checked.
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]
+addopts = "-q --strict-markers"

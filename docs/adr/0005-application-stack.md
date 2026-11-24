@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-11-24 |
 | **Issue** | #46 |
 | **Deciders** | ArtemenkoAndrii (owner); drafted with Claude |
@@ -116,5 +116,5 @@ Out of scope: hosting platform (#15), database and file storage (#18), sign-in (
 - Negative: sign-in, sessions and CSRF are assembled rather than built in — addressed in #17.
 - Negative: WeasyPrint pulls in system libraries, which makes the image larger (tens of MB) and may slow a scale-to-zero cold start (NFR-A1 allows ≤ 10 s); #15 checks this, and the web and worker images can be split later if needed.
 - Negative: htmx 2 and Python 3.14 are one major version behind; upgrades are planned, not urgent.
-- Follow-ups (done in this PR after acceptance): Python toolchain in the dev container; `apps/jobfinder` skeleton with one passing test; `build.sh`, `lint.sh`, `test.sh`, `audit.sh` and CI updated; CLAUDE.md commands and ADR index; [architecture](../architecture.md) Q1 and §2 note.
+- Done with this ADR: Python toolchain in the dev container; `apps/jobfinder` skeleton with one passing test; `build.sh`, `lint.sh`, `test.sh`, `audit.sh` and CI updated; CLAUDE.md commands and ADR index; [architecture](../architecture.md) Q1 and §2 note.
 - Follow-ups (other issues): #15 picks a platform that runs the image as a web service and as a 90-minute job; #18 decides the database and the repository implementation; #22 builds on this skeleton.
