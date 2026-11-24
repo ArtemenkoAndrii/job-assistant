@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-11-24 |
 | **Issue** | #12 |
 | **Deciders** | ArtemenkoAndrii (owner); drafted with Claude |
@@ -57,7 +57,7 @@ Flow:
 6. The branch is deleted after merge.
 7. Parallel agent sessions use separate branches (or `git worktree`), never a shared one.
 
-Enforcement — ruleset on the default branch, kept in the repo as [`.github/rulesets/main.json`](../../.github/rulesets/main.json) and applied through the GitHub API:
+Enforcement — ruleset on the default branch, kept in the repo as [`.github/rulesets/main.json`](../../.github/rulesets/main.json). The owner applies it (Settings → Rules → Rulesets → Import a ruleset, or the API); agent sessions cannot change repository settings:
 
 | Rule | Why |
 |---|---|
