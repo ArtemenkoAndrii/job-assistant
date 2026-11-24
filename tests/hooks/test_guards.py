@@ -73,7 +73,11 @@ class GuardRead(unittest.TestCase):
     def test_blocks_gh_config(self):
         for tool_input in [{"file_path": "/home/node/.config/gh/hosts.yml"},
                            {"pattern": "oauth_token", "path": "/home/node/.config/gh"},
-                           {"pattern": "~/.config/gh/*"}]:
+                           {"pattern": "~/.config/gh/*"},
+                           {"file_path": "~/.config/./gh/hosts.yml"},
+                           {"pattern": "hosts.yml", "path": "~"},
+                           {"pattern": "gh/*", "path": "~/.config"},
+                           {"pattern": "token", "path": "/"}]:
             with self.subTest(tool_input=tool_input):
                 self.assertIsNotNone(guard_read.check(tool_input))
 
