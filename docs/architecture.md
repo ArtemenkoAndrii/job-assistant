@@ -194,7 +194,7 @@ Matching against the applied registry: same source and job id, or same company a
 | **Observability** | Run record with counts, cost, duration, per-vacancy reason; email on blocked, failed and budget events | NFR-O1–O3 |
 | **Testability** | `BrowserGateway` and LLM gateway are interfaces; tests use recorded pages and a fake MCP server; evals gate prompt and model changes | NFR-M5, NFR-Q4, #24, #25 |
 
-## 7. Deployment (to be decided)
+## 7. Deployment
 
 ```mermaid
 flowchart LR
@@ -202,21 +202,21 @@ flowchart LR
     cloud -- "Cloudflare Access" --> home["Home server<br/>A-1 (out of scope)"]
 ```
 
-All cloud resources by Terraform from CI (NFR-M3, NFR-S4). GCP is the preferred provider (account exists); the free tier decides the services and the region (NFR-P2).
+GCP project `job-finder`, `us-central1` ([ADR-0006](adr/0006-hosting.md)): Cloud Run service (web), Cloud Run job (worker), one hourly Cloud Scheduler tick, Secret Manager, Artifact Registry, a $5 budget; a service account per workload. All cloud resources by Terraform from CI (NFR-M3, NFR-S4, #16).
 
 ## 8. Open questions → ADRs
 
 | # | Question | ADR issue | Leaning in this draft |
 |---|---|---|---|
 | Q1 | Language, framework, web UI approach, agent SDK; one codebase with web and worker entry points? | #46 → [ADR-0005](adr/0005-application-stack.md) | Python, FastAPI + Jinja2 + htmx, one image, two entry points |
-| Q2 | Which cloud services run the web app, the 30–90 min worker, the scheduler, within $5/month | #15 | Container platform with scale-to-zero for the web; a job runner without short timeouts for the worker |
+| Q2 | Which cloud services run the web app, the 30–90 min worker, the scheduler, within $5/month | #15 → [ADR-0006](adr/0006-hosting.md) | Cloud Run service + Cloud Run job + Cloud Scheduler, `us-central1`, own project |
 | Q3 | Terraform layout, state, environments, CI access | #16 | One environment for the MVP |
 | Q4 | Sign-in for one owner, working on phone and desktop | #17 | Managed identity provider, allow-list of one account; its secrets in the secret manager |
 | Q5 | Database and file storage; backups, retention, deletion | #18 | Managed, free-tier; resume upload to A-1 no longer needed (#4) |
 | Q6 | Agent harness; **agent loop in the worker vs hosted MCP tool**; provider abstraction; model per step | #19 → [ADR-0004](adr/0004-agent-runtime.md) | Loop in the worker on Pydantic AI, gateway tools over one MCP session (§3) |
 | Q7 | Browser tool allowlist, limits, stop triggers, ban-risk exit criteria; `--shared-browser-context` on A-1 | #20 | Enforced in `BrowserGateway` |
 | Q8 | Email channel for summaries and alerts; SPF/DKIM | #21 | Transactional email API, free tier. Email *applications* are out of the MVP (#4) |
-| Q9 | Run queue: managed queue or a DB lock | #15, #19 | DB lock if the platform allows one worker at a time |
+| Q9 | Run queue: managed queue or a DB lock | #15 → [ADR-0006](adr/0006-hosting.md), #18 | Queued runs and a lease in the database; "Run now" starts the job |
 | Q10 | PDF rendering of the tailored resume | #46 → [ADR-0005](adr/0005-application-stack.md) | WeasyPrint; checked against NFR-F4 |
 
 Issue text to adjust: #21 still mentions email applications (out of the MVP since #4); #18's "resume delivery to A-1" is no longer needed for the MVP.

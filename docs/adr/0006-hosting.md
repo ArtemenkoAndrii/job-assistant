@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-11-24 |
 | **Issue** | #15 |
 | **Deciders** | ArtemenkoAndrii (owner); drafted with Claude |
@@ -126,4 +126,3 @@ Out of scope: database and file storage (#18), sign-in (#17), Terraform layout a
   - #18: database and file storage in `us-central1`, the run queue table and the lease.
   - #17: sign-in on `*.run.app`.
   - #22: deploy the skeleton; measure cold start and image size; confirm the job timeout and the Admin API trigger.
-  - Update [architecture](../architecture.md) Q2, Q9 and §7 on acceptance.
