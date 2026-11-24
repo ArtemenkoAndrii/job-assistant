@@ -97,7 +97,7 @@ The A-1 token is readable only by `worker` (architecture §2).
 | Egress | page snapshots and LLM traffic, well under 1 GiB | free (1 GiB within North America) |
 | **Hosting before storage (#18)** | | **≈ $0–0.10** |
 
-The Cloud Run and Cloud Scheduler free tiers are **per billing account**, so the existing "Mas Home" services use part of the same allowance. Their usage is checked in the billing report before deployment (#22); the $5 budget alert covers the whole billing account's Job Finder project.
+The Cloud Run and Cloud Scheduler free tiers are **per billing account**, so the existing "Mas Home" services use part of the same allowance. Their usage is checked in the billing report before deployment (#22); the $5 budget is scoped to the `job-finder` project, so it measures Job Finder alone.
 
 The worst case in the NFRs — 3 profiles daily, every run the full 90 minutes — is ~490,000 vCPU-s, about **$4.6/month** above the free tier: under the cap, but it would leave almost nothing for storage (#18). The worker mostly waits on the network (pauses, A-1, LLM), so 0.5 vCPU would bring the same load to ~$0.1/month; below 1 vCPU Cloud Run allows at most 512 MiB, so this is measured in #22 before it is changed.
 
