@@ -8,7 +8,7 @@ The project is also a practice ground for building a product as an AI factory, f
 
 - [Vision](docs/vision.md)
 - [Use cases](docs/requirements/use-cases.md) and [non-functional requirements](docs/requirements/nfr.md)
-- [Architecture decisions](docs/adr/README.md)
+- [Architecture](docs/architecture.md) (draft) and [architecture decisions](docs/adr/README.md)
 - [Development environment](docs/dev-environment.md)
 - [How changes are made](docs/changes/README.md) · [Review guide](REVIEW.md) · [Agent guide](CLAUDE.md)
 

@@ -8,6 +8,7 @@ AI assistant that finds vacancies on LinkedIn and Glassdoor, researches employer
 |---|---|
 | `docs/vision.md` | Product vision — scope, principles, constraints |
 | `docs/requirements/` | Use cases (UC-NN) and non-functional requirements (NFR-XN) |
+| `docs/architecture.md` | System context, containers, run worker components, open questions → ADRs |
 | `docs/adr/` | Architecture decisions — read the index before designing anything |
 | `docs/changes/<issue>-<slug>/` | intent.md, spec.md, plan.md per change ([how](docs/changes/README.md)) |
 | `docs/templates/` | Templates for intent, spec, plan |
