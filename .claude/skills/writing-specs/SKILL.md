@@ -27,14 +27,12 @@ Copy `docs/templates/spec.md` to `docs/changes/<issue>-<slug>/spec.md` and fill 
 
 ## 3. Apply the policy skills
 
-Run each check and write the result into the spec:
+Decide which policy skills apply, then **invoke each applicable one with the Skill tool** (do not just read its file) and write its result into the spec. Do not load skills that do not apply.
 
-| Skill | Applies when | Writes into |
-|---|---|---|
-| `security-privacy` | Always | *Security, privacy and cost* |
-| `cost-guard` | Always | *Security, privacy and cost* |
-| `mobile-first-ux` | The change has any UI or email the user sees | *UX* |
-| `resume-rules` | The change generates, edits, reviews or shows resumes, answers or cover notes | *Requirements*, *Acceptance criteria* |
+- `security-privacy` — **always**. Result → *Security, privacy and cost*.
+- `cost-guard` — **always**. Result → *Security, privacy and cost*.
+- `mobile-first-ux` — only if the change has a screen, component or email the user sees. Result → *UX*.
+- `resume-rules` — only if the change generates, edits, reviews or shows resumes, added skills, answers or cover notes. Result → *Requirements* and *Acceptance criteria*.
 
 ## 4. Flag, don't hide
 
