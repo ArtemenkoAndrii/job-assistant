@@ -5,4 +5,4 @@ How we record decisions: [ADR-0001](0001-record-architecture-decisions.md). New 
 | ADR | Title | Status | Date |
 |---|---|---|---|
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions | Accepted | 2026-11-23 |
-| [0002](0002-dev-environment.md) | Development environment and Claude Code isolation | Proposed | 2026-11-23 |
+| [0002](0002-dev-environment.md) | Development environment and Claude Code isolation | Accepted | 2026-11-23 |

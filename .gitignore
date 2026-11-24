@@ -1,0 +1,35 @@
+# Secrets and local config — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.claude/settings.local.json
+
+# Personal data from spike runs and measurements
+spikes/**/recordings/
+spikes/**/notes/
+spikes/**/results/
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Language and build artefacts (extended when the stack is chosen)
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+dist/
+build/
+coverage/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
