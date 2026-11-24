@@ -12,7 +12,7 @@ ARG CLAUDE_CODE_VERSION=latest
 RUN apt-get update && apt-get install -y --no-install-recommends \
     less git procps sudo man-db unzip gnupg2 gh jq nano vim \
     iptables ipset iproute2 dnsutils aggregate curl ca-certificates \
-    bubblewrap socat \
+    bubblewrap socat shellcheck \
     python3 python3-pip python3-venv \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -27,6 +27,14 @@ RUN mkdir /commandhistory && touch /commandhistory/.bash_history && chown -R $US
 
 # Claude Code config directory (volume mounted, keeps login and user settings between rebuilds)
 RUN mkdir -p /home/node/.claude && chown -R node:node /home/node/.claude
+
+# GitHub CLI config directory (volume mounted, keeps the agent's fine-grained token between rebuilds)
+RUN mkdir -p /home/node/.config/gh && chown -R node:node /home/node/.config
+
+# Secret scanner for the pre-commit hook and scripts/lint.sh; same version as CI
+ARG GITLEAKS_VERSION=8.21.2
+COPY install-gitleaks.sh /tmp/install-gitleaks.sh
+RUN GITLEAKS_VERSION=$GITLEAKS_VERSION bash /tmp/install-gitleaks.sh /usr/local/bin && rm /tmp/install-gitleaks.sh
 
 ENV DEVCONTAINER=true
 

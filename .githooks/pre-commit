@@ -1,0 +1,13 @@
+#!/bin/sh
+# Blocks a commit that adds a secret. The repo is public: a pushed secret is a leaked secret.
+# Enabled by .devcontainer/post-create.sh (git config core.hooksPath .githooks).
+# CI runs the same scan on the whole history.
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks git --pre-commit --staged --redact --no-banner; then
+    echo "pre-commit: gitleaks found a possible secret in the staged changes; commit blocked." >&2
+    echo "Remove it (use a placeholder or an environment variable name) and commit again." >&2
+    exit 1
+  fi
+else
+  echo "pre-commit: gitleaks is not installed; secret scan skipped (CI will run it)." >&2
+fi

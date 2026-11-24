@@ -21,6 +21,7 @@ The first build takes a few minutes. When it is done, the terminal shows:
 
 ```
 Claude Code settings: sandbox enabled, failIfUnavailable=true (...)
+Git hooks: .githooks (gitleaks 8.21.2)
 Firewall ready: default deny, N allowed domains + GitHub
 ```
 
@@ -36,6 +37,28 @@ Log in when asked (the login is stored in a Docker volume and survives rebuilds)
 
 - `/sandbox` — the sandbox is **enabled**; if Claude Code exits at start with a sandbox error, see Troubleshooting.
 - `curl -sI https://example.com` fails, `curl -s https://api.github.com/zen` returns a short phrase — the firewall is active.
+
+## GitHub access for agents
+
+Claude Code in the container uses `gh` and `git push` with its **own** token, not your personal login: a fine-grained personal access token that cannot change repository settings, so the `main` ruleset (ADR-0003) cannot be switched off from the container.
+
+1. GitHub → Settings → Developer settings → **Fine-grained tokens** → Generate new token.
+2. Repository access: **Only select repositories** → `job-assistant`. Expiration: 90 days or less.
+3. Repository permissions: **Contents**: Read and write · **Pull requests**: Read and write · **Issues**: Read and write · **Metadata**: Read (automatic). Leave everything else, especially **Administration** and **Workflows**, at *No access*.
+4. In the container: `gh auth login` → GitHub.com → HTTPS → paste the token; then `gh auth setup-git`.
+
+The token is stored in a container volume (`~/.config/gh`), not in the repo, and survives rebuilds. Claude Code is denied reading it (`.claude/settings.json`). To revoke, delete the token on GitHub. Without **Workflows** permission the agent cannot change `.github/workflows/`; such changes are pushed by you.
+
+## Guardrails
+
+| Guard | Where | What it stops |
+|---|---|---|
+| Ruleset on `main` | GitHub ([ADR-0003](adr/0003-branching-strategy.md)) | Any change to `main` without a PR and a green `ci` check |
+| Claude Code hooks | `.claude/hooks/`, `.claude/settings.json` | Push to `main`, force-push, `--no-verify`, secrets in written files, reading `.env` |
+| Pre-commit | `.githooks/pre-commit` (enabled by `post-create.sh`) | Commits with secrets — yours and the agent's |
+| CI | `.github/workflows/ci.yml` | Lint, tests, gitleaks on the whole history |
+
+Run the checks locally: `scripts/lint.sh` and `scripts/test.sh`.
 
 ## What is not in the container, on purpose
 
@@ -59,4 +82,5 @@ Log in when asked (the login is stored in a Docker volume and survives rebuilds)
 | Firewall: "could not read GitHub IP ranges" | Network not ready at start — rebuild or restart the container |
 | Commands fail with `bwrap: Unexpected capabilities but not setuid` | The runtime (e.g. rootless Podman) gave the firewall capabilities to the `node` user. Start Claude Code with `claude` (the wrapper in `/usr/local/bin` drops them); check `which claude` shows `/usr/local/bin/claude`; rebuild the container if it does not |
 | Claude Code exits: sandbox unavailable | Check `bubblewrap` and `socat` are installed and `enableWeakerNestedSandbox` is `true` in `~/.claude/settings.json` inside the container |
+| Commit blocked: "gitleaks found a possible secret" | Remove the value from the file and use a placeholder. If it is a false positive, add a narrow allowlist entry to `.gitleaks.toml` in a PR |
 | A service stopped working after hours | Its IPs changed; restart the container to re-resolve the allowlist |

@@ -19,8 +19,11 @@ The project is also a practice ground for building a product as an AI factory, f
 | `docs/` | Vision, requirements, ADRs, change artifacts, templates, spike findings |
 | `spikes/` | Throwaway feasibility kits |
 | `.devcontainer/` | Dev container with egress firewall and Claude Code sandbox |
+| `.claude/` | Claude Code project settings, skills, `verifier` subagent, guard hooks |
+| `.github/` | CI workflow and the `main` ruleset |
+| `scripts/`, `tests/` | `lint.sh`, `test.sh` and their tests |
 
-Planned, created by their issues: `apps/` (product code, after the stack decision), `infra/` (Terraform, #16), `evals/` (datasets and eval suite, #24–#25), `.claude/` (project settings, skills, agents, hooks — #11, #13).
+Planned, created by their issues: `apps/` (product code, after the stack decision), `infra/` (Terraform, #16), `evals/` (datasets and eval suite, #24–#25).
 
 ## Status
 

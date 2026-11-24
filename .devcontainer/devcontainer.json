@@ -14,7 +14,8 @@
   "remoteUser": "node",
   "mounts": [
     "source=job-assistant-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
-    "source=job-assistant-claude-config-${devcontainerId},target=/home/node/.claude,type=volume"
+    "source=job-assistant-claude-config-${devcontainerId},target=/home/node/.claude,type=volume",
+    "source=job-assistant-gh-config-${devcontainerId},target=/home/node/.config/gh,type=volume"
   ],
   "containerEnv": {
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
