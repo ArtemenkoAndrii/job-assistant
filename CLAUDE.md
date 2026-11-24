@@ -44,6 +44,7 @@ CI runs all four on every PR, then builds the container image and smoke-tests it
 - ADR-0003 Branching strategy
 - ADR-0004 Agent runtime and LLM provider (Pydantic AI, OpenAI, loop in the worker)
 - ADR-0005 Application stack (Python 3.14, uv, FastAPI + Jinja2 + htmx, one image)
+- ADR-0006 Hosting (GCP `job-finder` project, us-central1, Cloud Run service + job, Scheduler)
 
 A spec must not contradict an accepted ADR; if it has to, stop and propose a new ADR.
 
