@@ -15,3 +15,7 @@ else
   cp "$MANAGED" "$TARGET"
 fi
 echo "Claude Code settings: sandbox enabled, failIfUnavailable=true ($TARGET)"
+
+# Git hooks from the repo (pre-commit secret scan)
+git config core.hooksPath .githooks
+echo "Git hooks: .githooks (gitleaks $(gitleaks version 2>/dev/null || echo missing))"

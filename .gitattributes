@@ -4,3 +4,5 @@
 Dockerfile text eol=lf
 .devcontainer/* text eol=lf
 *.ps1 text eol=crlf
+.githooks/* text eol=lf
+*.py text eol=lf

@@ -12,12 +12,19 @@ AI assistant that finds vacancies on LinkedIn and Glassdoor, researches employer
 | `docs/changes/<issue>-<slug>/` | intent.md, spec.md, plan.md per change ([how](docs/changes/README.md)) |
 | `docs/templates/` | Templates for intent, spec, plan |
 | `.claude/skills/` | Spec-writing process and policy skills (security, cost, mobile UX, resume rules) |
+| `.claude/agents/`, `.claude/hooks/` | `verifier` subagent; guard hooks (no push to `main`, no secrets) — see `.claude/settings.json` |
+| `scripts/`, `tests/` | Lint and test entry points; tests for the hooks |
 | `docs/spikes/`, `spikes/` | Feasibility findings and throwaway spike kits — not product code |
 | `.devcontainer/` | The only supported dev environment ([ADR-0002](docs/adr/0002-dev-environment.md)) |
 
 ## Commands
 
-No product code yet — build, test and lint commands are added here with the stack decision. Each must be one command that exits non-zero on failure.
+| Command | What |
+|---|---|
+| `scripts/lint.sh` | shellcheck, JSON, Markdown links, A-1 references, gitleaks |
+| `scripts/test.sh` | All tests (now: the guard hooks) |
+
+CI runs both on every PR (`.github/workflows/ci.yml`). No product code yet: build and language-specific checks are added to these scripts with the stack decision (#46). Each stays one command that exits non-zero on failure.
 
 ## Workflow
 
@@ -36,6 +43,7 @@ A spec must not contradict an accepted ADR; if it has to, stop and propose a new
 
 ## Rules
 
+- **Hooks block** pushes to `main`, force-push, `--no-verify` and writing secrets. If a hook blocks you, fix the cause; never work around it.
 - **Never touch real job boards** from tests, CI or the dev container: use recorded pages and fakes. The Browser MCP endpoint (A-1) is reachable only from runtime and spike kits.
 - **The repo is public:** no secrets, no personal data (resumes, names, contacts, recorded pages with personal data). Secrets live in a secret manager.
 - **Never invent experience** in anything that generates resumes; added skills follow vision §9.
@@ -49,6 +57,7 @@ A spec must not contradict an accepted ADR; if it has to, stop and propose a new
 - [ ] `plan.md` matches what was built.
 - [ ] No secrets or personal data in the diff.
 - [ ] Docs touched by the change are updated (ADR index, use cases, NFR, README).
+- [ ] The `verifier` subagent reports PASS (quote its verdict in the PR).
 
 ## Known mistakes
 
