@@ -93,7 +93,7 @@ The cost ledger, counters and the lock are operational records without personal 
 | `packages/pending/{package_id}.pdf` | tailored resume, not applied to | lifecycle rule: `age` 90 days + `matchesPrefix: packages/pending/` → delete |
 | `packages/applied/{package_id}.pdf` | tailored resume of an applied vacancy | no lifecycle rule; deleted with the registry entry |
 
-Lifecycle rules cannot match custom metadata, so the state is the prefix. A move is copy + delete, which restarts the object's age; so a PDF can outlive its package document. The worker's start-up housekeeping (with the lease) deletes PDFs whose package document no longer exists.
+Lifecycle rules cannot match custom metadata, so the state is the prefix. A move is copy + delete, which restarts the object's age; so a PDF can outlive its package document. The worker's start-up housekeeping (with the lease) deletes PDFs older than one hour whose package document no longer exists (the age guard protects a PDF uploaded just before its package document is written, NFR-R5 write order).
 
 Soft delete stays at the default 7 days (recovers mistakes; matches the 7-day backup expiry in NFR-P4). It is the only protection for files: uploads are the owner's own documents (they keep the originals) and PDFs can be regenerated, so files get no separate backup — NFR-A6's daily backup covers Firestore.
 
