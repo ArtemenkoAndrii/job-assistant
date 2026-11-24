@@ -68,9 +68,18 @@ Graph frameworks (e.g. LangGraph) were not considered further: the pipeline is a
 3. **LLM gateway.** A thin module in front of Pydantic AI:
    - a **model registry** in configuration: step → provider, model, reasoning effort, `UsageLimits`;
    - **cost** = usage tokens × a price table in configuration (as in the spike's `pricing.json`), written to the cost ledger per step and run (NFR-C3);
-   - **budget guard**: before each LLM request, the month's spend from the ledger plus the task's worst case (from its `UsageLimits`) must stay under the cap, otherwise `BudgetExceeded` → run *stopped: budget* (NFR-C4). Alert at $5 (NFR-C2);
-   - **provider settings**: OpenAI Responses API with `store=false`; no third-party tracing; our own step trace in the DB without resume text (NFR-P6).
-4. **Per-task ceilings** with Pydantic AI `UsageLimits`, so no task loops: browsing tasks ≤ 20 tool calls and ≤ 25 model requests; text steps 1–3 requests (tailor/review rounds are counted by the orchestrator, max 2 rework rounds).
+   - **budget guard**: before each task, the month's spend from the ledger plus the task's worst case must stay under the cap, otherwise `BudgetExceeded` → run *stopped: budget* (NFR-C4). The worst case is the task's token ceiling (point 4) × the model's prices. Alert at $5 (NFR-C2);
+   - **provider settings**: OpenAI Responses API with `store=false`; no third-party tracing; our own step trace in the DB without resume text, kept ≤ 30 days (NFR-P6);
+   - **provider abstraction check** (NFR-M1): a test runs one step on two providers' model classes (with recorded responses), so a second provider stays wired.
+4. **Per-task ceilings** with Pydantic AI `UsageLimits` (requests, tool calls and total tokens), so no task loops and every task has a known worst-case cost. Starting values, from the spike kit, tuned with real runs:
+
+   | Task | Tool calls | Requests | Total tokens | Worst case on Luna |
+   |---|---|---|---|---|
+   | Search (per source) | 40 | 45 | 400k | ~$0.04 |
+   | Read vacancy, research employer | 20 | 25 | 200k | ~$0.02 |
+   | Text step (one call) | 0 | 3 | 30k | < $0.01 (Sol review ~$0.30) |
+
+   Tailor/review rounds are counted by the orchestrator (max 2 rework rounds). Search never succeeded in spike #3 (blank pages), so its ceiling is the least certain.
 5. **Web search** for the dossier uses the provider's built-in web search tool through the same gateway (cost counted per call).
 
 **Model per step (from spike #3; changed only through configuration and evals):**
@@ -78,6 +87,7 @@ Graph frameworks (e.g. LangGraph) were not considered further: the pipeline is a
 | Step | Where | Model | Effort | Expected cost |
 |---|---|---|---|---|
 | Search, read vacancy, research employer (browsing tasks) | worker | GPT-6 Luna | low | ~$0.002 per task |
+| Dedupe (job id; company + title, UC-15) | worker | none — code | — | — |
 | Extract list / vacancy, hard filter, re-filter, dossier synthesis | worker | GPT-6 Luna | low | < $0.002 per call |
 | Dossier web search | worker | provider web search | — | ~$0.01 per call, ~$0.08 per run |
 | Tailor resume | worker, web (UC-12) | GPT-6 Luna | medium | ~$0.0013 per vacancy |
@@ -85,7 +95,7 @@ Graph frameworks (e.g. LangGraph) were not considered further: the pipeline is a
 | Answers, cover note | worker, web (UC-11 A1) | GPT-6 Luna | low | < $0.002 per package |
 | Extraction preview on upload | web (UC-03) | GPT-6 Luna | low | < $0.002 per file |
 
-**Expected total:** ~$0.15–0.25 per run of one profile, ~$1/month on the weekly schedule (NFR-C5). Fallback for browsing if Luna's task success rate is too low: GPT-6.1 Terra (~$0.35 per run), a configuration change.
+**Expected total:** ~$0.15–0.25 per run of one profile, ~$1/month on the weekly schedule (NFR-C5). Fallback for browsing if Luna's task success rate is too low: GPT-6.1 Terra (~$0.43 per run including web search), a configuration change.
 
 **Provider data terms:** OpenAI does not use API data for training by default; abuse-monitoring logs are kept up to 30 days. Responses are not stored (`store=false`). Zero Data Retention needs OpenAI's approval and is not required for the MVP (NFR-P5).
 
@@ -104,4 +114,4 @@ Out of scope: browser tool allowlist, limits and stop triggers in detail (#20); 
   - #46 application stack: Python confirmed by the owner; versions, package manager, layout.
   - #22 walking skeleton: one browsing task through `BrowserGateway` and one Luna call with cost recorded.
   - #24/#25: fake MCP server and evals; re-measure Luna's browsing success rate.
-  - Update [architecture](../architecture.md) Q6 when this ADR is accepted.
+  - On acceptance: status, ADR index in CLAUDE.md and the "(Proposed)" mark in [architecture](../architecture.md) Q6 are updated in this PR.
