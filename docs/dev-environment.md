@@ -47,14 +47,14 @@ Claude Code in the container uses `gh` and `git push` with its **own** token, no
 3. Repository permissions: **Contents**: Read and write · **Pull requests**: Read and write · **Issues**: Read and write · **Metadata**: Read (automatic). Leave everything else, especially **Administration** and **Workflows**, at *No access*.
 4. In the container: `gh auth login` → GitHub.com → HTTPS → paste the token; then `gh auth setup-git`.
 
-The token is stored in a container volume (`~/.config/gh`), not in the repo, and survives rebuilds. `gh` reads it inside the Claude Code sandbox; a hook stops the agent from printing it (`gh auth token`, reading `~/.config/gh`). Do not add a `Read(~/.config/gh/**)` deny rule: the sandbox applies Read deny rules to every command, and `gh` then looks logged out. To revoke, delete the token on GitHub. Without **Workflows** permission the agent cannot change `.github/workflows/`; such changes are pushed by you.
+The token is stored in a container volume (`~/.config/gh`), not in the repo, and survives rebuilds. `gh` reads it inside the Claude Code sandbox. Hooks keep the agent's file tools (Read, Grep, Glob) out of `~/.config/gh` and block the usual ways to print it from the shell (`gh auth token`, `gh auth status -t`, reading `~/.config/gh`); shell checks are pattern-based and best effort, so the real limit is the token's narrow scope. Do not add a `Read(~/.config/gh/**)` deny rule: the sandbox applies Read deny rules to every command, and `gh` then looks logged out. To revoke, delete the token on GitHub. Without **Workflows** permission the agent cannot change `.github/workflows/`; such changes are pushed by you.
 
 ## Guardrails
 
 | Guard | Where | What it stops |
 |---|---|---|
 | Ruleset on `main` | GitHub ([ADR-0003](adr/0003-branching-strategy.md)) | Any change to `main` without a PR and a green `ci` check |
-| Claude Code hooks | `.claude/hooks/`, `.claude/settings.json` | Push to `main`, force-push, `--no-verify`, secrets in written files, reading `.env` |
+| Claude Code hooks | `.claude/hooks/`, `.claude/settings.json` | Push to `main`, force-push, `--no-verify`, secrets in written files, reading `.env`, reading or printing the gh token |
 | Pre-commit | `.githooks/pre-commit` (enabled by `post-create.sh`) | Commits with secrets — yours and the agent's |
 | CI | `.github/workflows/ci.yml` | Lint, tests, gitleaks on the whole history |
 

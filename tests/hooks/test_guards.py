@@ -14,6 +14,7 @@ HOOKS = ROOT / ".claude" / "hooks"
 sys.path.insert(0, str(HOOKS))
 
 import guard_bash  # noqa: E402
+import guard_read  # noqa: E402
 import guard_write  # noqa: E402
 
 
@@ -45,7 +46,7 @@ class GuardBash(unittest.TestCase):
         for cmd in ["git commit --no-verify -m x", "git config core.hooksPath /dev/null",
                     "gh repo delete ArtemenkoAndrii/job-assistant", "gh repo edit --visibility private",
                     "gh api repos/o/r/rulesets/1 -X PUT", "gh api -X DELETE repos/o/r/issues/1",
-                    "gh auth token", "cat ~/.config/gh/hosts.yml", "cat .env", "cat ./.env.local", "source .env",
+                    "gh auth token", "gh auth status --show-token", "gh auth status -t", "cat ~/.config/gh/hosts.yml", "cat ~/.config/*/hosts.yml", "cat .env", "cat ./.env.local", "source .env",
                     "ls config/secrets/"]:
             with self.subTest(cmd=cmd):
                 self.assertTrue(self.blocked(cmd))
@@ -54,7 +55,7 @@ class GuardBash(unittest.TestCase):
         for cmd in ["git push -u origin 13-ci-guardrails", "git push origin 12-fix-main-page",
                     "git push origin main-docs", "git merge main", "git pull origin main",
                     "git commit -m 'fix -f flag docs'", "git push --follow-tags",
-                    "cp .env.example /tmp/x", "gh pr create", "gh api repos/o/r/pulls", "gh issue view 14", "gh auth status",
+                    "cp .env.example /tmp/x", "gh pr create", "gh api repos/o/r/pulls", "gh issue view 14", "gh auth status", "ls ~/.config/gh-dash",
                     "node -e 'console.log(process.env.HOME)'", "scripts/lint.sh"]:
             with self.subTest(cmd=cmd):
                 self.assertFalse(self.blocked(cmd))
@@ -66,6 +67,21 @@ class GuardBash(unittest.TestCase):
                              capture_output=True, text=True)
         self.assertEqual(out.returncode, 2)
         self.assertIn("ADR-0003", out.stderr)
+
+
+class GuardRead(unittest.TestCase):
+    def test_blocks_gh_config(self):
+        for tool_input in [{"file_path": "/home/node/.config/gh/hosts.yml"},
+                           {"pattern": "oauth_token", "path": "/home/node/.config/gh"},
+                           {"pattern": "~/.config/gh/*"}]:
+            with self.subTest(tool_input=tool_input):
+                self.assertIsNotNone(guard_read.check(tool_input))
+
+    def test_allows_repo_files(self):
+        for tool_input in [{"file_path": "docs/dev-environment.md"}, {"pattern": "gh api", "path": "."},
+                           {"pattern": "**/*.py"}, {"file_path": "/home/node/.config/gh-dash/config.yml"}]:
+            with self.subTest(tool_input=tool_input):
+                self.assertIsNone(guard_read.check(tool_input))
 
 
 class GuardWrite(unittest.TestCase):
