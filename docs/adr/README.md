@@ -10,3 +10,4 @@ How we record decisions: [ADR-0001](0001-record-architecture-decisions.md). New 
 | [0004](0004-agent-runtime.md) | Agent runtime and LLM provider | Accepted | 2026-11-24 |
 | [0005](0005-application-stack.md) | Application stack | Accepted | 2026-11-24 |
 | [0006](0006-hosting.md) | Hosting | Accepted | 2026-11-24 |
+| [0007](0007-data-storage.md) | Data and file storage | Proposed | 2026-11-24 |
