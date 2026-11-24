@@ -137,7 +137,7 @@ This draft therefore assumes the **agent loop runs in the worker**: the worker c
 sequenceDiagram
     autonumber
     participant Q as Run queue
-    participant O as Orchestrator
+    participant O as Orchestrator + agent tasks
     participant G as Run guard
     participant B as BrowserGateway
     participant A as A-1
