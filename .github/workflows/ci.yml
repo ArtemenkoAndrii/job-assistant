@@ -33,7 +33,7 @@ jobs:
       - name: Install uv and Python
         run: |
           python3 -m pip install --user "uv==0.13.9"
-          uv python install 3.14
+          uv python install "$(cat apps/jobfinder/.python-version)"
 
       - name: Build
         run: scripts/build.sh

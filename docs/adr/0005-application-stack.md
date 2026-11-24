@@ -117,4 +117,6 @@ Out of scope: hosting platform (#15), database and file storage (#18), sign-in (
 - Negative: WeasyPrint pulls in system libraries, which makes the image larger (tens of MB) and may slow a scale-to-zero cold start (NFR-A1 allows ≤ 10 s); #15 checks this, and the web and worker images can be split later if needed.
 - Negative: htmx 2 and Python 3.14 are one major version behind; upgrades are planned, not urgent.
 - Done with this ADR: Python toolchain in the dev container; `apps/jobfinder` skeleton with one passing test; `build.sh`, `lint.sh`, `test.sh`, `audit.sh` and CI updated; CLAUDE.md commands and ADR index; [architecture](../architecture.md) Q1 and §2 note.
-- Follow-ups (other issues): #15 picks a platform that runs the image as a web service and as a 90-minute job; #18 decides the database and the repository implementation; #22 builds on this skeleton.
+- Follow-ups (other issues):
+  - #22 adds the libraries as they are first used: `pydantic-ai-slim`, `mcp`, `respx`, `weasyprint` (with Pango in the runtime image), `pypdf`, vendored htmx and Pico, Playwright and axe.
+  - Pin base images by digest and keep them current with Dependabot or Renovate (with #16). #15 picks a platform that runs the image as a web service and as a 90-minute job; #18 decides the database and the repository implementation; #22 builds on this skeleton.

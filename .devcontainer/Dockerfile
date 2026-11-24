@@ -65,7 +65,9 @@ ENV VISUAL=nano
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 
 # Python 3.14 managed by uv; at run time uv must not download interpreters (firewall)
-RUN uv python install 3.14
+# Keep equal to apps/jobfinder/.python-version
+ARG PYTHON_VERSION=3.14.6
+RUN uv python install ${PYTHON_VERSION}
 ENV UV_PYTHON_DOWNLOADS=never UV_LINK_MODE=copy
 
 # Some runtimes (e.g. rootless Podman) hand the capabilities added for the firewall (NET_ADMIN, NET_RAW)

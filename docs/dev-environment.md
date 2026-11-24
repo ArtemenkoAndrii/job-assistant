@@ -40,7 +40,7 @@ Log in when asked (the login is stored in a Docker volume and survives rebuilds)
 
 ## Python
 
-The container has **uv** and **Python 3.14** (installed by uv at build time). In `apps/jobfinder`: `uv sync` creates `.venv`; `uv add <package>` adds a dependency and updates `uv.lock`; `uv run pytest` runs the tests. From the repo root, `scripts/build.sh`, `scripts/lint.sh` and `scripts/test.sh` run everything. uv cannot download Python versions at run time (`UV_PYTHON_DOWNLOADS=never`, firewall); a new Python version comes with a container rebuild.
+The container has **uv** and **Python 3.14** (installed by uv at build time). In `apps/jobfinder`: `uv sync` creates `.venv`; `uv add <package>` adds a dependency and updates `uv.lock`; `uv run pytest` runs the tests. From the repo root, `scripts/build.sh`, `scripts/lint.sh` and `scripts/test.sh` run everything; `scripts/audit.sh` checks dependencies for known vulnerabilities (needs PyPI). The Python version is in `apps/jobfinder/.python-version`; the dev container, CI and the image use the same one. uv cannot download Python versions at run time (`UV_PYTHON_DOWNLOADS=never`, firewall); a new Python version comes with a container rebuild.
 
 ## GitHub access for agents
 
