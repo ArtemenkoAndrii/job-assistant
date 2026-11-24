@@ -84,4 +84,6 @@ Run the checks locally: `scripts/lint.sh` and `scripts/test.sh`.
 | Claude Code exits: sandbox unavailable | Check `bubblewrap` and `socat` are installed and `enableWeakerNestedSandbox` is `true` in `~/.claude/settings.json` inside the container |
 | Commit blocked: "gitleaks found a possible secret" | Remove the value from the file and use a placeholder. If it is a false positive, add a narrow allowlist entry to `.gitleaks.toml` in a PR |
 | Claude Code says gh is not authenticated, but `gh auth status` in the terminal is fine | A Read deny rule covers `~/.config/gh`, or the sandbox has not allowed `api.github.com` yet — approve the domain when Claude Code asks |
+| `gh issue view` fails with "Projects (classic) is being deprecated" | Old `gh` from Debian; rebuild the container (it now installs `gh` from GitHub's repository). Until then: `gh issue view N --json title,body,comments` |
+| Claude Code's first `gh` call fails with "not in this command's allowed_domains" | The sandbox allows network per command; Claude Code re-runs it with `api.github.com` listed. Approve it if asked |
 | A service stopped working after hours | Its IPs changed; restart the container to re-resolve the allowlist |
