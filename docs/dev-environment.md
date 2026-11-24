@@ -57,5 +57,6 @@ Log in when asked (the login is stored in a Docker volume and survives rebuilds)
 |---|---|
 | `init-firewall.sh: $'\r': command not found` | The script was checked out with CRLF. Re-clone after the `.gitattributes` change, or clone into a container volume |
 | Firewall: "could not read GitHub IP ranges" | Network not ready at start — rebuild or restart the container |
+| Commands fail with `bwrap: Unexpected capabilities but not setuid` | The runtime (e.g. rootless Podman) gave the firewall capabilities to the `node` user. Start Claude Code with `claude` (the wrapper in `/usr/local/bin` drops them); check `which claude` shows `/usr/local/bin/claude`; rebuild the container if it does not |
 | Claude Code exits: sandbox unavailable | Check `bubblewrap` and `socat` are installed and `enableWeakerNestedSandbox` is `true` in `~/.claude/settings.json` inside the container |
 | A service stopped working after hours | Its IPs changed; restart the container to re-resolve the allowlist |
