@@ -38,6 +38,17 @@ ENV VISUAL=nano
 
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 
+# Some runtimes (e.g. rootless Podman) hand the capabilities added for the firewall (NET_ADMIN, NET_RAW)
+# to the non-root user as ambient capabilities. bubblewrap then refuses to start ("Unexpected capabilities
+# but not setuid") and the Claude Code sandbox fails. This wrapper, first in PATH, starts Claude Code with
+# all inheritable and ambient capabilities dropped. The firewall still runs as root via sudo.
+USER root
+RUN printf '%s\n' '#!/bin/sh' \
+      'exec setpriv --inh-caps=-all --ambient-caps=-all -- /usr/local/share/npm-global/bin/claude "$@"' \
+      > /usr/local/bin/claude \
+  && chmod 755 /usr/local/bin/claude
+USER node
+
 # Egress firewall and container-level Claude Code settings
 USER root
 COPY init-firewall.sh allowed-domains.txt claude-settings.json /usr/local/share/devcontainer/
