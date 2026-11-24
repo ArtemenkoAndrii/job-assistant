@@ -7,7 +7,6 @@
       "Edit(./.env.*)",
       "Read(./**/secrets/**)",
       "Edit(./**/secrets/**)",
-      "Read(~/.config/gh/**)",
       "Read(~/.config/gcloud/**)",
       "Read(~/.aws/**)",
       "Read(~/.ssh/**)"

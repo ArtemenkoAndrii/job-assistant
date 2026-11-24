@@ -26,6 +26,8 @@ RULES = [
      "DELETE through the GitHub API is not allowed for agents."),
     (r"\bgh\s+auth\s+token\b",
      "printing the GitHub token is not allowed."),
+    (r"\.config/gh\b",
+     "the gh config holds the token; use gh commands, do not read its files."),
     (r"(^|[\s'\"=/<>])\.env(\.(?!example\b)[\w.-]+)?($|[\s'\";|&)])",
      ".env files hold secrets; agents do not read or write them."),
     (r"(^|[\s'\"=/])secrets/",

@@ -47,7 +47,7 @@ Claude Code in the container uses `gh` and `git push` with its **own** token, no
 3. Repository permissions: **Contents**: Read and write · **Pull requests**: Read and write · **Issues**: Read and write · **Metadata**: Read (automatic). Leave everything else, especially **Administration** and **Workflows**, at *No access*.
 4. In the container: `gh auth login` → GitHub.com → HTTPS → paste the token; then `gh auth setup-git`.
 
-The token is stored in a container volume (`~/.config/gh`), not in the repo, and survives rebuilds. Claude Code is denied reading it (`.claude/settings.json`). To revoke, delete the token on GitHub. Without **Workflows** permission the agent cannot change `.github/workflows/`; such changes are pushed by you.
+The token is stored in a container volume (`~/.config/gh`), not in the repo, and survives rebuilds. `gh` reads it inside the Claude Code sandbox; a hook stops the agent from printing it (`gh auth token`, reading `~/.config/gh`). Do not add a `Read(~/.config/gh/**)` deny rule: the sandbox applies Read deny rules to every command, and `gh` then looks logged out. To revoke, delete the token on GitHub. Without **Workflows** permission the agent cannot change `.github/workflows/`; such changes are pushed by you.
 
 ## Guardrails
 
@@ -83,4 +83,5 @@ Run the checks locally: `scripts/lint.sh` and `scripts/test.sh`.
 | Commands fail with `bwrap: Unexpected capabilities but not setuid` | The runtime (e.g. rootless Podman) gave the firewall capabilities to the `node` user. Start Claude Code with `claude` (the wrapper in `/usr/local/bin` drops them); check `which claude` shows `/usr/local/bin/claude`; rebuild the container if it does not |
 | Claude Code exits: sandbox unavailable | Check `bubblewrap` and `socat` are installed and `enableWeakerNestedSandbox` is `true` in `~/.claude/settings.json` inside the container |
 | Commit blocked: "gitleaks found a possible secret" | Remove the value from the file and use a placeholder. If it is a false positive, add a narrow allowlist entry to `.gitleaks.toml` in a PR |
+| Claude Code says gh is not authenticated, but `gh auth status` in the terminal is fine | A Read deny rule covers `~/.config/gh`, or the sandbox has not allowed `api.github.com` yet — approve the domain when Claude Code asks |
 | A service stopped working after hours | Its IPs changed; restart the container to re-resolve the allowlist |

@@ -45,7 +45,7 @@ class GuardBash(unittest.TestCase):
         for cmd in ["git commit --no-verify -m x", "git config core.hooksPath /dev/null",
                     "gh repo delete ArtemenkoAndrii/job-assistant", "gh repo edit --visibility private",
                     "gh api repos/o/r/rulesets/1 -X PUT", "gh api -X DELETE repos/o/r/issues/1",
-                    "gh auth token", "cat .env", "cat ./.env.local", "source .env",
+                    "gh auth token", "cat ~/.config/gh/hosts.yml", "cat .env", "cat ./.env.local", "source .env",
                     "ls config/secrets/"]:
             with self.subTest(cmd=cmd):
                 self.assertTrue(self.blocked(cmd))
@@ -54,7 +54,7 @@ class GuardBash(unittest.TestCase):
         for cmd in ["git push -u origin 13-ci-guardrails", "git push origin 12-fix-main-page",
                     "git push origin main-docs", "git merge main", "git pull origin main",
                     "git commit -m 'fix -f flag docs'", "git push --follow-tags",
-                    "cp .env.example /tmp/x", "gh pr create", "gh api repos/o/r/pulls",
+                    "cp .env.example /tmp/x", "gh pr create", "gh api repos/o/r/pulls", "gh issue view 14", "gh auth status",
                     "node -e 'console.log(process.env.HOME)'", "scripts/lint.sh"]:
             with self.subTest(cmd=cmd):
                 self.assertFalse(self.blocked(cmd))
