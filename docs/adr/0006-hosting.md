@@ -19,6 +19,7 @@ Constraints and inputs:
 - HTTPS everywhere (NFR-S3); least-privilege service accounts, no long-lived keys (NFR-S4); secrets only in a secret manager (NFR-S2).
 - Vision §10: GCP is preferred; the owner has a GCP account with billing. Any region is allowed (NFR-P2), and the owner accepts a US region for the larger free tier. No custom domain for now.
 - The worker must reach A-1 (Cloudflare Access over the internet), OpenAI and the email service.
+- The owner's billing account already runs another project ("Mas Home") in `us-central1`: two Cloud Run services and a Firestore database (Native mode, Standard edition). The owner prefers to reuse Firestore if it fits (#18).
 
 Database and file storage are decided in #18, sign-in in #17, Terraform and CI deployment in #16, email in #21.
 
@@ -58,7 +59,9 @@ The web app runs as a Cloud Run **service**; the worker as a Cloud Run **job**, 
 
 ## Decision
 
-**Option 1: GCP, region `us-central1`, Cloud Run service + Cloud Run job.**
+**Option 1: GCP, region `us-central1`, Cloud Run service + Cloud Run job, in a new GCP project `job-finder` on the existing billing account.**
+
+Why a separate project rather than the existing "Mas Home" project: Job Finder stores resumes, so its data and secrets must not be readable by the other project's service accounts; a project is GCP's main IAM, quota and billing-report boundary, and deleting the product later is one action. The billing account and the region stay the same. Reusing Firestore is decided in #18; Firestore in the new project is the leaning there, since the owner already uses it.
 
 | Component | Service | Configuration |
 |---|---|---|
@@ -93,6 +96,8 @@ The A-1 token is readable only by `worker` (architecture §2).
 | Artifact Registry | 3 images × ~150–250 MB | ~$0–0.05 above the 0.5 GB free |
 | Egress | page snapshots and LLM traffic, well under 1 GiB | free (1 GiB within North America) |
 | **Hosting before storage (#18)** | | **≈ $0–0.10** |
+
+The Cloud Run and Cloud Scheduler free tiers are **per billing account**, so the existing "Mas Home" services use part of the same allowance. Their usage is checked in the billing report before deployment (#22); the $5 budget alert covers the whole billing account's Job Finder project.
 
 The worst case in the NFRs — 3 profiles daily, every run the full 90 minutes — is ~490,000 vCPU-s, about **$4.6/month** above the free tier: under the cap, but it would leave almost nothing for storage (#18). The worker mostly waits on the network (pauses, A-1, LLM), so 0.5 vCPU would bring the same load to ~$0.1/month; below 1 vCPU Cloud Run allows at most 512 MiB, so this is measured in #22 before it is changed.
 
