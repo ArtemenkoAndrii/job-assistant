@@ -73,7 +73,7 @@ Requirements:
 | `vacancies` (top-level, not a subcollection: TTL does not delete subcollections) | profile id, run id, source, job id, link, company, title, `match_key`, status, skip reason | — | 12 months (`expire_at`, same as its run) |
 | `dossiers` | company, facts with source links, missing sources | — | 90 days (`expire_at`), cleared when applied |
 | `packages` | vacancy, PDF path, added skills (+ rejected), answers, cover note, reviewer notes, channel | **resume content** | 90 days (`expire_at`), cleared when applied |
-| `applied` | position, company, source, link, channel, profile, date, package id; `match_key` (source + job id) and `title_key` (normalised company + title, UC-15) | links to the package | until the owner deletes it |
+| `applied` | position, company, source, link, channel, profile, `applied_at`, package id; `match_key` (source + job id) and `title_key` (normalised company + title, UC-15) | links to the package | until the owner deletes it |
 | `cost_ledger/{yyyy-mm}`, `page_loads/{board}-{date}` | LLM cost per month and step; page loads per board per day | — | 12 months |
 | `locks/worker` | the run lease: holder (job execution id), `expires_at` | — | — |
 
@@ -93,7 +93,7 @@ The cost ledger, counters and the lock are operational records without personal 
 | `packages/pending/{package_id}.pdf` | tailored resume, not applied to | lifecycle rule: `age` 90 days + `matchesPrefix: packages/pending/` → delete |
 | `packages/applied/{package_id}.pdf` | tailored resume of an applied vacancy | no lifecycle rule; deleted with the registry entry |
 
-Lifecycle rules cannot match custom metadata, so the state is the prefix.
+Lifecycle rules cannot match custom metadata, so the state is the prefix. A move is copy + delete, which restarts the object's age; so a PDF can outlive its package document. The worker's start-up housekeeping (with the lease) deletes PDFs whose package document no longer exists.
 
 Soft delete stays at the default 7 days (recovers mistakes; matches the 7-day backup expiry in NFR-P4). It is the only protection for files: uploads are the owner's own documents (they keep the originals) and PDFs can be regenerated, so files get no separate backup — NFR-A6's daily backup covers Firestore.
 
@@ -105,9 +105,10 @@ Soft delete stays at the default 7 days (recovers mistakes; matches the 7-day ba
 
 - "Run now" and the hourly tick create `runs` documents with status `queued`; neither queues a run for a profile that already has one `queued` or `running`.
 - A worker execution takes the lease in a Firestore transaction (`locks/worker` free or expired → set holder and `expires_at` = now + 10 min). A second execution that finds a valid lease exits at once.
-- With the lease, it first marks runs left `running` by a crashed execution as `failed`, then executes queued runs oldest first until the queue is empty, then releases the lease.
+- With the lease, it first marks runs left `running` by a crashed execution as `failed`, then executes **one** queued run, the oldest, and releases the lease. One run per execution keeps every run inside the 2 h job timeout (ADR-0006, NFR-R3); a further queued run starts on the next hourly tick (≤ 1 h later).
 - A background task renews the lease every 2 minutes in a transaction that checks the holder. If renewal fails or finds another holder, the run stops at once (*stopped: lease lost*) and the worker exits without further writes.
 - CPU-heavy work (PDF rendering, parsing) runs in a thread, so the renewal task is never starved.
+- Accepted gap: a worker that stalls past its lease can still write for up to one renewal interval before it notices; at one user and hourly ticks this is not worth fencing every write.
 
 **Write order (NFR-R5):** PDF upload → package document → run marked `completed` → summary email. A failure before the email leaves no email pointing to a missing package.
 
