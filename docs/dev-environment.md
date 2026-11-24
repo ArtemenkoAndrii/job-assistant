@@ -47,14 +47,14 @@ Claude Code in the container uses `gh` and `git push` with its **own** token, no
 3. Repository permissions: **Contents**: Read and write · **Pull requests**: Read and write · **Issues**: Read and write · **Metadata**: Read (automatic). Leave everything else, especially **Administration** and **Workflows**, at *No access*.
 4. In the container: `gh auth login` → GitHub.com → HTTPS → paste the token; then `gh auth setup-git`.
 
-The token is stored in a container volume (`~/.config/gh`), not in the repo, and survives rebuilds. Claude Code is denied reading it (`.claude/settings.json`). To revoke, delete the token on GitHub. Without **Workflows** permission the agent cannot change `.github/workflows/`; such changes are pushed by you.
+The token is stored in a container volume (`~/.config/gh`), not in the repo, and survives rebuilds. `gh` reads it inside the Claude Code sandbox. Hooks keep the agent's file tools (Read, Grep, Glob) out of `~/.config/gh`, including searches that start above it, and block the usual ways to print it from the shell (`gh auth token`, `gh auth status -t`, reading `~/.config/gh`); all of these checks are pattern-based and best effort, so the real limit is the token's narrow scope. Do not add a `Read(~/.config/gh/**)` deny rule: the sandbox applies Read deny rules to every command, and `gh` then looks logged out. To revoke, delete the token on GitHub. Without **Workflows** permission the agent cannot change `.github/workflows/`; such changes are pushed by you.
 
 ## Guardrails
 
 | Guard | Where | What it stops |
 |---|---|---|
 | Ruleset on `main` | GitHub ([ADR-0003](adr/0003-branching-strategy.md)) | Any change to `main` without a PR and a green `ci` check |
-| Claude Code hooks | `.claude/hooks/`, `.claude/settings.json` | Push to `main`, force-push, `--no-verify`, secrets in written files, reading `.env` |
+| Claude Code hooks | `.claude/hooks/`, `.claude/settings.json` | Push to `main`, force-push, `--no-verify`, secrets in written files, reading `.env`, reading or printing the gh token |
 | Pre-commit | `.githooks/pre-commit` (enabled by `post-create.sh`) | Commits with secrets — yours and the agent's |
 | CI | `.github/workflows/ci.yml` | Lint, tests, gitleaks on the whole history |
 
@@ -83,4 +83,7 @@ Run the checks locally: `scripts/lint.sh` and `scripts/test.sh`.
 | Commands fail with `bwrap: Unexpected capabilities but not setuid` | The runtime (e.g. rootless Podman) gave the firewall capabilities to the `node` user. Start Claude Code with `claude` (the wrapper in `/usr/local/bin` drops them); check `which claude` shows `/usr/local/bin/claude`; rebuild the container if it does not |
 | Claude Code exits: sandbox unavailable | Check `bubblewrap` and `socat` are installed and `enableWeakerNestedSandbox` is `true` in `~/.claude/settings.json` inside the container |
 | Commit blocked: "gitleaks found a possible secret" | Remove the value from the file and use a placeholder. If it is a false positive, add a narrow allowlist entry to `.gitleaks.toml` in a PR |
+| Claude Code says gh is not authenticated, but `gh auth status` in the terminal is fine | A Read deny rule covers `~/.config/gh`, or the sandbox has not allowed `api.github.com` yet — approve the domain when Claude Code asks |
+| `gh issue view` fails with "Projects (classic) is being deprecated" | Old `gh` from Debian; rebuild the container (it now installs `gh` from GitHub's repository). Until then: `gh issue view N --json title,body,comments` |
+| Claude Code's first `gh` call fails with "not in this command's allowed_domains" | The sandbox allows network per command; Claude Code re-runs it with `api.github.com` listed. Approve it if asked |
 | A service stopped working after hours | Its IPs changed; restart the container to re-resolve the allowlist |

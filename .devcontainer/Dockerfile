@@ -10,10 +10,20 @@ ARG CLAUDE_CODE_VERSION=latest
 # Base tools, firewall tools (iptables, ipset), Claude Code sandbox dependencies (bubblewrap, socat),
 # Python for spike and helper scripts.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    less git procps sudo man-db unzip gnupg2 gh jq nano vim \
+    less git procps sudo man-db unzip gnupg2 jq nano vim \
     iptables ipset iproute2 dnsutils aggregate curl ca-certificates \
     bubblewrap socat shellcheck \
     python3 python3-pip python3-venv \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# GitHub CLI from GitHub's own apt repository: Debian's gh is too old
+# (`gh issue view` fails on the removed Projects (classic) field).
+RUN mkdir -p -m 755 /etc/apt/keyrings \
+  && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+  && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+    > /etc/apt/sources.list.d/github-cli.list \
+  && apt-get update && apt-get install -y --no-install-recommends gh \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ARG USERNAME=node
