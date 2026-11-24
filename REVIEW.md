@@ -4,7 +4,7 @@ Used by human reviewers and by review agents for every pull request. Review the 
 
 ## Passes
 
-Run them in this order; report findings per pass.
+Run them in this order; report findings per pass. The policy skills in `.claude/skills/` (security-privacy, cost-guard, mobile-first-ux, resume-rules) hold the detailed checklists for passes 2, 3, 5 and 6.
 
 1. **Correctness** — does the change do what the spec and acceptance criteria say? Logic errors, edge cases, error handling, data loss, concurrency (runs are sequential — NFR-R2).
 2. **Security** — secrets in code, logs or config; missing authentication (NFR-S1); new network egress; tools given to agents (no form submission, no JavaScript, no account changes — NFR-B1, NFR-S6); untrusted page content treated as instructions.

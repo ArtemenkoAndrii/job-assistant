@@ -6,7 +6,6 @@
 api.anthropic.com
 claude.ai
 console.anthropic.com
-statsig.anthropic.com
 sentry.io
 
 # Package registries

@@ -7,6 +7,8 @@
 | **Status** | Draft — Accepted |
 | **Date** | YYYY-MM-DD |
 
+<!-- Written with the writing-specs skill; policy skills: security-privacy, cost-guard, mobile-first-ux, resume-rules. -->
+
 ## Related ADRs
 
 <!-- The spec must not contradict an accepted ADR. If it needs to, stop and write a new ADR first (ADR-0001). -->
