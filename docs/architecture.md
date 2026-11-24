@@ -84,7 +84,7 @@ flowchart TB
 | **File storage** | Uploaded files and generated PDFs | Private; links in emails go to the web app, never to public objects |
 | **Secret manager** | A-1 service token (worker only), LLM API key (worker and web app), email credentials (worker), sign-in secrets such as a session signing key (web app) (NFR-S2) | Rotation every 90 days (NFR-S5) |
 
-Web app and worker can be one codebase with two entry points (decided with the stack, #46).
+Web app and worker are one codebase and one container image with two entry points ([ADR-0005](adr/0005-application-stack.md)).
 
 ## 3. Run worker components
 
@@ -208,7 +208,7 @@ All cloud resources by Terraform from CI (NFR-M3, NFR-S4). GCP is the preferred 
 
 | # | Question | ADR issue | Leaning in this draft |
 |---|---|---|---|
-| Q1 | Language, framework, web UI approach, agent SDK; one codebase with web and worker entry points? | #46 | One codebase, two entry points |
+| Q1 | Language, framework, web UI approach, agent SDK; one codebase with web and worker entry points? | #46 → [ADR-0005](adr/0005-application-stack.md) | Python, FastAPI + Jinja2 + htmx, one image, two entry points |
 | Q2 | Which cloud services run the web app, the 30–90 min worker, the scheduler, within $5/month | #15 | Container platform with scale-to-zero for the web; a job runner without short timeouts for the worker |
 | Q3 | Terraform layout, state, environments, CI access | #16 | One environment for the MVP |
 | Q4 | Sign-in for one owner, working on phone and desktop | #17 | Managed identity provider, allow-list of one account; its secrets in the secret manager |
@@ -217,6 +217,6 @@ All cloud resources by Terraform from CI (NFR-M3, NFR-S4). GCP is the preferred 
 | Q7 | Browser tool allowlist, limits, stop triggers, ban-risk exit criteria; `--shared-browser-context` on A-1 | #20 | Enforced in `BrowserGateway` |
 | Q8 | Email channel for summaries and alerts; SPF/DKIM | #21 | Transactional email API, free tier. Email *applications* are out of the MVP (#4) |
 | Q9 | Run queue: managed queue or a DB lock | #15, #19 | DB lock if the platform allows one worker at a time |
-| Q10 | PDF rendering of the tailored resume | #46 | Library in the chosen stack; checked against NFR-F4 |
+| Q10 | PDF rendering of the tailored resume | #46 → [ADR-0005](adr/0005-application-stack.md) | WeasyPrint; checked against NFR-F4 |
 
 Issue text to adjust: #21 still mentions email applications (out of the MVP since #4); #18's "resume delivery to A-1" is no longer needed for the MVP.

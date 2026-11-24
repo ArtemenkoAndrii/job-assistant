@@ -14,7 +14,8 @@ AI assistant that finds vacancies on LinkedIn and Glassdoor, researches employer
 | `docs/templates/` | Templates for intent, spec, plan |
 | `.claude/skills/` | Spec-writing process and policy skills (security, cost, mobile UX, resume rules) |
 | `.claude/agents/`, `.claude/hooks/` | `verifier` subagent; guard hooks (no push to `main`, no secrets) — see `.claude/settings.json` |
-| `scripts/`, `tests/` | Lint and test entry points; tests for the hooks |
+| `apps/jobfinder/` | The application: `src/jobfinder/{domain,pipeline,browser,llm,storage,web,worker}`, `tests/`, `Dockerfile` ([ADR-0005](docs/adr/0005-application-stack.md)) |
+| `scripts/`, `tests/` | Build, lint, test and audit entry points; tests for the hooks |
 | `docs/spikes/`, `spikes/` | Feasibility findings and throwaway spike kits — not product code |
 | `.devcontainer/` | The only supported dev environment ([ADR-0002](docs/adr/0002-dev-environment.md)) |
 
@@ -22,10 +23,12 @@ AI assistant that finds vacancies on LinkedIn and Glassdoor, researches employer
 
 | Command | What |
 |---|---|
-| `scripts/lint.sh` | shellcheck, JSON, Markdown links, A-1 references, gitleaks |
-| `scripts/test.sh` | All tests (now: the guard hooks) |
+| `scripts/build.sh` | `uv sync --locked` and `uv build` for `apps/jobfinder` |
+| `scripts/lint.sh` | shellcheck, JSON, Markdown links, A-1 references, Ruff, Pyright, gitleaks (offline) |
+| `scripts/test.sh` | Hook tests and `pytest` (no network: fake models and fake MCP only) |
+| `scripts/audit.sh` | pip-audit of locked dependencies (needs network; CI step) |
 
-CI runs both on every PR (`.github/workflows/ci.yml`). No product code yet: build and language-specific checks are added to these scripts with the stack decision (#46). Each stays one command that exits non-zero on failure.
+CI runs all four on every PR, then builds the container image and smoke-tests it (`.github/workflows/ci.yml`). Each command exits non-zero on failure. Add dependencies with `uv add` inside `apps/jobfinder`; commit `uv.lock`.
 
 ## Workflow
 
@@ -40,6 +43,7 @@ CI runs both on every PR (`.github/workflows/ci.yml`). No product code yet: buil
 - ADR-0002 Development environment and Claude Code isolation
 - ADR-0003 Branching strategy
 - ADR-0004 Agent runtime and LLM provider (Pydantic AI, OpenAI, loop in the worker)
+- ADR-0005 Application stack (Python 3.14, uv, FastAPI + Jinja2 + htmx, one image)
 
 A spec must not contradict an accepted ADR; if it has to, stop and propose a new ADR.
 

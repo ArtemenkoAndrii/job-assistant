@@ -38,6 +38,10 @@ Log in when asked (the login is stored in a Docker volume and survives rebuilds)
 - `/sandbox` — the sandbox is **enabled**; if Claude Code exits at start with a sandbox error, see Troubleshooting.
 - `curl -sI https://example.com` fails, `curl -s https://api.github.com/zen` returns a short phrase — the firewall is active.
 
+## Python
+
+The container has **uv** and **Python 3.14** (installed by uv at build time). In `apps/jobfinder`: `uv sync` creates `.venv`; `uv add <package>` adds a dependency and updates `uv.lock`; `uv run pytest` runs the tests. From the repo root, `scripts/build.sh`, `scripts/lint.sh` and `scripts/test.sh` run everything; `scripts/audit.sh` checks dependencies for known vulnerabilities (needs PyPI). The Python version is in `apps/jobfinder/.python-version`; the dev container, CI and the image use the same one. uv cannot download Python versions at run time (`UV_PYTHON_DOWNLOADS=never`, firewall); a new Python version comes with a container rebuild.
+
 ## GitHub access for agents
 
 Claude Code in the container uses `gh` and `git push` with its **own** token, not your personal login: a fine-grained personal access token that cannot change repository settings, so the `main` ruleset (ADR-0003) cannot be switched off from the container.

@@ -62,7 +62,7 @@ Each requirement has an ID, a measurable target and a way to verify it. Values t
 | NFR-S4 | Cloud access | Least-privilege service accounts; CI deploys through Workload Identity Federation, no long-lived keys | IaC review (ADR #16) |
 | NFR-S5 | Secret rotation | A-1 service token and API keys rotated every **90 days** or on suspicion | Calendar reminder; rotation runbook |
 | NFR-S6 | Prompt injection | Page content is data; the LLM gets no tools that can submit forms, run JavaScript or change accounts | Tool allowlist test; eval with injected vacancy text |
-| NFR-S7 | Dependencies | Known high/critical vulnerabilities fail CI | Dependency scan in CI |
+| NFR-S7 | Dependencies | Known high/critical vulnerabilities fail CI (pip-audit fails on any known vulnerability — stricter; non-applicable findings are ignored by ID with a reason, ADR-0005) | Dependency scan in CI |
 | NFR-S8 | Job-board credentials | Never stored or typed by the system (A-2) | Code review; no credential fields in the data model |
 
 ## 6. Privacy and personal data (GDPR)
