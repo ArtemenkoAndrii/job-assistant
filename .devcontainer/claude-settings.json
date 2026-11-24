@@ -3,7 +3,8 @@
     "enabled": true,
     "failIfUnavailable": true,
     "autoAllowBashIfSandboxed": true,
-    "enableWeakerNestedSandbox": true
+    "enableWeakerNestedSandbox": true,
+    "allowUnsandboxedCommands": false
   },
   "permissions": {
     "deny": [
