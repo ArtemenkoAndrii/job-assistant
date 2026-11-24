@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-11-24 |
 | **Issue** | #19 |
 | **Deciders** | ArtemenkoAndrii (owner); drafted with Claude |
@@ -114,4 +114,3 @@ Out of scope: browser tool allowlist, limits and stop triggers in detail (#20); 
   - #46 application stack: Python confirmed by the owner; versions, package manager, layout.
   - #22 walking skeleton: one browsing task through `BrowserGateway` and one Luna call with cost recorded.
   - #24/#25: fake MCP server and evals; re-measure Luna's browsing success rate.
-  - On acceptance: status, ADR index in CLAUDE.md and the "(Proposed)" mark in [architecture](../architecture.md) Q6 are updated in this PR.

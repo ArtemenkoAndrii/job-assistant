@@ -39,6 +39,7 @@ CI runs both on every PR (`.github/workflows/ci.yml`). No product code yet: buil
 - ADR-0001 Record architecture decisions
 - ADR-0002 Development environment and Claude Code isolation
 - ADR-0003 Branching strategy
+- ADR-0004 Agent runtime and LLM provider (Pydantic AI, OpenAI, loop in the worker)
 
 A spec must not contradict an accepted ADR; if it has to, stop and propose a new ADR.
 

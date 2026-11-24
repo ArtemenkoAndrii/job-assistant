@@ -129,7 +129,7 @@ flowchart LR
 
 Spike #3 ran browsing agents through the LLM provider's **hosted MCP tool**: the provider's servers called A-1 directly. Pages went blank between calls, likely because each provider connection got a new browser context. Besides that bug, a hosted MCP tool puts the provider between the agent and A-1, so Job Finder cannot pause between tool calls, count page loads or stop on an authwall before the next call, and the A-1 token is handed to the provider on every request.
 
-This draft therefore assumes the **agent loop runs in the worker**: the worker calls the model with tool definitions, executes each tool call itself through `BrowserGateway` over one persistent MCP session, and returns the result to the model. The model never talks to A-1. Same models and option C, but the limits, pace, stop conditions and allowlist become deterministic code — not instructions to the model. Decided in [ADR-0004](adr/0004-agent-runtime.md) (Proposed); the browser policy follows in #20. The vision (§12) lists `--shared-browser-context` on A-1 as the first fix for blank pages; it is still worth enabling (it keeps one context for the worker's session), but this draft does not depend on the hosted tool working.
+This draft therefore assumes the **agent loop runs in the worker**: the worker calls the model with tool definitions, executes each tool call itself through `BrowserGateway` over one persistent MCP session, and returns the result to the model. The model never talks to A-1. Same models and option C, but the limits, pace, stop conditions and allowlist become deterministic code — not instructions to the model. Decided in [ADR-0004](adr/0004-agent-runtime.md); the browser policy follows in #20. The vision (§12) lists `--shared-browser-context` on A-1 as the first fix for blank pages; it is still worth enabling (it keeps one context for the worker's session), but this draft does not depend on the hosted tool working.
 
 ## 4. A run, step by step
 
@@ -213,7 +213,7 @@ All cloud resources by Terraform from CI (NFR-M3, NFR-S4). GCP is the preferred 
 | Q3 | Terraform layout, state, environments, CI access | #16 | One environment for the MVP |
 | Q4 | Sign-in for one owner, working on phone and desktop | #17 | Managed identity provider, allow-list of one account; its secrets in the secret manager |
 | Q5 | Database and file storage; backups, retention, deletion | #18 | Managed, free-tier; resume upload to A-1 no longer needed (#4) |
-| Q6 | Agent harness; **agent loop in the worker vs hosted MCP tool**; provider abstraction; model per step | #19 → [ADR-0004](adr/0004-agent-runtime.md) (Proposed) | Loop in the worker on Pydantic AI, gateway tools over one MCP session (§3) |
+| Q6 | Agent harness; **agent loop in the worker vs hosted MCP tool**; provider abstraction; model per step | #19 → [ADR-0004](adr/0004-agent-runtime.md) | Loop in the worker on Pydantic AI, gateway tools over one MCP session (§3) |
 | Q7 | Browser tool allowlist, limits, stop triggers, ban-risk exit criteria; `--shared-browser-context` on A-1 | #20 | Enforced in `BrowserGateway` |
 | Q8 | Email channel for summaries and alerts; SPF/DKIM | #21 | Transactional email API, free tier. Email *applications* are out of the MVP (#4) |
 | Q9 | Run queue: managed queue or a DB lock | #15, #19 | DB lock if the platform allows one worker at a time |
