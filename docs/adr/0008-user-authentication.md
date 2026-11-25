@@ -62,7 +62,7 @@ Google's proxy in front of the service: the user signs in with their Google acco
    - compare it, lowercased, with `JOBFINDER_OWNER_EMAIL` (a Secret Manager value) and answer **403** if it differs (UC-01 A2). If the setting is missing or empty, **everyone** is denied (fail closed);
    - any request without a valid token → 401;
    - 401/403 responses and logs never contain the email or the token (NFR-P6).
-   - The only route without this check is `/healthz`, which returns just the status and version; in the deployed service it is still behind IAP, so nothing is public. It lets the CI smoke test and Cloud Run probes reach the container.
+   - The only route without this check is `/healthz`, which returns just the status and version; in the deployed service it is still behind IAP, so nothing is public. It lets the CI smoke test and Cloud Run probes reach the container. The route test (NFR-S1) lists `/healthz` as the only allowed exception, so any other unauthenticated route fails CI.
 3. **First sign-in (UC-01 step 2):** if `settings/owner` does not exist, it is created with the signed-in email as the notification email.
 4. **Sessions:** IAP keeps the session in its own cookie; the app stores no session. Sign-out is the Google account sign-out.
 5. **CSRF:** every method other than GET, HEAD and OPTIONS must carry an `Origin` header that is in a configured list of the service's URLs (Cloud Run serves a deterministic `…-<number>.us-central1.run.app` URL and an older hash URL; both are listed, or one is disabled in #16). A missing or other `Origin` → 403. GET handlers have no side effects. IAP cookies are sent by the browser automatically, so this check is required.
