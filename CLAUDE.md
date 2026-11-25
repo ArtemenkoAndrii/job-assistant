@@ -49,6 +49,7 @@ CI runs all four on every PR, then builds the container image and smoke-tests it
 - ADR-0008 User authentication (IAP on Cloud Run, app verifies the IAP JWT and the owner email)
 - ADR-0009 Infrastructure as code (Terraform; `infra/platform` applied by the owner, `infra/app` by CI via WIF)
 - ADR-0010 Notifications and email delivery (channels behind `Notifier`; email via a dedicated Gmail, Gmail API `gmail.send`, Personal mode)
+- ADR-0011 Browser automation policy (gateway tool/URL/click allowlists, no JavaScript or typing, limits, stop triggers per board)
 
 A spec must not contradict an accepted ADR; if it has to, stop and propose a new ADR.
 

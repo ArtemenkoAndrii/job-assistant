@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-11-25 |
 | **Issue** | #20 |
 | **Deciders** | ArtemenkoAndrii (owner); drafted with Claude |
@@ -216,4 +216,3 @@ Out of scope: submitting applications (#32); operating A-1; the post-MVP review 
   - **#27:** the search flow under this policy.
   - **#38:** review against real runs.
   - **The owner:** A-1 flags and the validation checklist (§9–§10).
-  - **On acceptance:** CLAUDE.md index.
