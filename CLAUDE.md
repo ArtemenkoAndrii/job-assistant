@@ -24,7 +24,7 @@ AI assistant that finds vacancies on LinkedIn and Glassdoor, researches employer
 | Command | What |
 |---|---|
 | `scripts/build.sh` | `uv sync --locked` and `uv build` for `apps/jobfinder` |
-| `scripts/lint.sh` | shellcheck, JSON, Markdown links, A-1 references, Ruff, Pyright, gitleaks (offline) |
+| `scripts/lint.sh` | shellcheck, JSON, Markdown links, A-1 references, no Proposed ADRs, Ruff, Pyright, gitleaks (offline) |
 | `scripts/test.sh` | Hook tests and `pytest` (no network: fake models and fake MCP only) |
 | `scripts/audit.sh` | pip-audit of locked dependencies (needs network; CI step) |
 
@@ -45,6 +45,7 @@ CI runs all four on every PR, then builds the container image and smoke-tests it
 - ADR-0004 Agent runtime and LLM provider (Pydantic AI, OpenAI, loop in the worker)
 - ADR-0005 Application stack (Python 3.14, uv, FastAPI + Jinja2 + htmx, one image)
 - ADR-0006 Hosting (GCP `job-finder` project, us-central1, Cloud Run service + job, Scheduler)
+- ADR-0007 Data and file storage (Firestore + private Cloud Storage bucket, TTL retention, run lease)
 
 A spec must not contradict an accepted ADR; if it has to, stop and propose a new ADR.
 
@@ -69,4 +70,4 @@ A spec must not contradict an accepted ADR; if it has to, stop and propose a new
 ## Known mistakes
 
 <!-- When an agent makes the same mistake twice, add the correction here. -->
-- None yet.
+- ADRs were merged while still Proposed (ADR-0003, ADR-0007). Ask the owner to accept before merge and set Accepted + indexes in the same PR; `scripts/lint.sh` now fails while an ADR is Proposed (#59).

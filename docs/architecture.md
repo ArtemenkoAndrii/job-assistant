@@ -167,7 +167,7 @@ sequenceDiagram
 
 A blocked condition at any browser call ends the run as *blocked: reason*, keeps what is done and sends an alert (UC-08). The guard is checked again before each step (kill switch ≤ 1 min, NFR-O3).
 
-## 5. Data (conceptual)
+## 5. Data (conceptual — collections, indexes and retention rules in [ADR-0007](adr/0007-data-storage.md))
 
 | Entity | Key fields | Personal data | Retention (NFR-P3) |
 |---|---|---|---|
@@ -212,7 +212,7 @@ GCP project `job-finder`, `us-central1` ([ADR-0006](adr/0006-hosting.md)): Cloud
 | Q2 | Which cloud services run the web app, the 30–90 min worker, the scheduler, within $5/month | #15 → [ADR-0006](adr/0006-hosting.md) | Cloud Run service + Cloud Run job + Cloud Scheduler, `us-central1`, own project |
 | Q3 | Terraform layout, state, environments, CI access | #16 | One environment for the MVP |
 | Q4 | Sign-in for one owner, working on phone and desktop | #17 → [ADR-0008](adr/0008-user-authentication.md) | IAP directly on Cloud Run; the app verifies the IAP JWT and the owner email |
-| Q5 | Database and file storage; backups, retention, deletion | #18 | Managed, free-tier; resume upload to A-1 no longer needed (#4) |
+| Q5 | Database and file storage; backups, retention, deletion | #18 → [ADR-0007](adr/0007-data-storage.md) | Firestore (Native) + private Cloud Storage bucket; TTL retention; daily backups; run lease in Firestore |
 | Q6 | Agent harness; **agent loop in the worker vs hosted MCP tool**; provider abstraction; model per step | #19 → [ADR-0004](adr/0004-agent-runtime.md) | Loop in the worker on Pydantic AI, gateway tools over one MCP session (§3) |
 | Q7 | Browser tool allowlist, limits, stop triggers, ban-risk exit criteria; `--shared-browser-context` on A-1 | #20 | Enforced in `BrowserGateway` |
 | Q8 | Email channel for summaries and alerts; SPF/DKIM | #21 | Transactional email API, free tier. Email *applications* are out of the MVP (#4) |

@@ -48,7 +48,7 @@ A decision gets an ADR when it is hard to reverse, affects several parts of the 
 
 1. The ADR issue (e.g. #15) is taken; a branch and an ADR file with status **Proposed** are created. Claude may draft the context, options and trade-offs.
 2. The owner chooses the option; the PR is reviewed.
-3. Before merge the status is set to **Accepted** (or **Rejected**) and the index is updated in the same PR. Merging the PR closes the issue.
+3. Before merge the status is set to **Accepted** (or **Rejected**) and the index is updated in the same PR. Merging the PR closes the issue. CI enforces it: `scripts/lint.sh` fails while any ADR is **Proposed**, so the required `ci` check blocks the merge (#59).
 4. An accepted ADR is **not rewritten**. Typos and links may be fixed; a changed decision is a **new ADR** that supersedes the old one, and the old one's status is changed to *Superseded by ADR-NNNN* in the same PR.
 
 ### How ADRs connect to the rest of the SDLC
