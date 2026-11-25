@@ -56,10 +56,10 @@ The owner accepts the risk of restriction on the accounts used by A-1. These sho
 
 | Signal | Action |
 |---|---|
-| A restriction or "unusual activity" notice on a board | Stop the run; pause that board's schedule; notify (UC-08 A1). The owner re-enables it by hand |
+| A restriction or "unusual activity" notice on a board | Stop browsing that board for the run (§6); pause that board's schedule; notify (UC-08 A1). The owner re-enables it by hand |
 | A second restriction notice on the same board within 30 days, or any account suspension | Automation on that board is **disabled** until a review (#38). Runs continue with the other boards |
 | Challenges (CAPTCHA, "Just a moment…") on more than half of a board's runs over 4 weeks | That board is turned off as a vacancy source; the owner decides on dossier use |
-| A credential prompt on a board (login page, authwall) | Stop the run; notify "log in on A-1" (UC-08). It never counts as permission to type |
+| A credential prompt on a board (login page, authwall) | Stop browsing that board for the run (§6); notify "log in on A-1" (UC-08). It never counts as permission to type |
 
 ### 2. Tool allowlist
 
@@ -154,6 +154,8 @@ After **every** tool result (navigate, click, back, snapshot, find, tabs), the g
 | A job board (search, vacancy) | That board is skipped for the rest of the run; the other board continues | That board is skipped and its schedule paused (§1) | The whole run stops |
 | A company website (dossier) | That source is marked missing in the dossier; the run continues | — | The whole run stops |
 
+An **unknown dialog** is treated like a challenge in the same place: the board is skipped for the run, or the company source is marked missing.
+
 - The run is *blocked: reason* only if every job board is blocked or A-1 is unreachable. Otherwise it completes, and the skipped board is listed in the run and the summary.
 - Notifications (ADR-0010): a login on a board or a restriction always notifies, because the owner must act; a challenge is shown in the run and the summary only.
 - The patterns live in one versioned file and are tested against recorded pages (#24).
@@ -202,7 +204,7 @@ Out of scope: submitting applications (#32); operating A-1; the post-MVP review 
 
 ## Consequences
 
-- Positive: read-only behaviour and politeness are guaranteed by code paths, not by model obedience; injected instructions have no tools to act with and no personal data to leak.
+- Positive: read-only behaviour and politeness are guaranteed by code paths, not by model obedience; injected instructions have no tools to act with, and browsing contexts hold only search criteria and redacted page content.
 - Positive: clear stop behaviour and exit criteria protect the owner's accounts and make the risk visible.
 - Negative: allowlists of clicks, paths and stop patterns are site-specific and will break when sites change; a mismatch stops a run (safe), and the patterns need maintenance with recorded-page tests.
 - Negative: the strict click policy may miss legitimate controls; each addition is a reviewed change to the allowlist.
