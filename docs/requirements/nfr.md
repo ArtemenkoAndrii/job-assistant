@@ -60,7 +60,7 @@ Each requirement has an ID, a measurable target and a way to verify it. Values t
 | NFR-S2 | Secrets (A-1 service token, LLM API key, email credentials) | Only in a secret manager; never in the repo, logs or images | Secret-scanning hook and CI check; log review |
 | NFR-S3 | Transport security | HTTPS only, everywhere | Config check |
 | NFR-S4 | Cloud access | Least-privilege service accounts; CI deploys through Workload Identity Federation, no long-lived keys | IaC review (ADR #16) |
-| NFR-S5 | Secret rotation | A-1 service token and API keys rotated every **90 days** or on suspicion | Calendar reminder; rotation runbook |
+| NFR-S5 | Secret rotation | A-1 service token, API keys and the email sender's OAuth client secret rotated every **90 days** or on suspicion; the sender's refresh token is replaced by re-consent on suspicion or after its password changes (ADR-0010) | Calendar reminder; rotation runbook |
 | NFR-S6 | Prompt injection | Page content is data; the LLM gets no tools that can submit forms, run JavaScript or change accounts | Tool allowlist test; eval with injected vacancy text |
 | NFR-S7 | Dependencies | Known high/critical vulnerabilities fail CI (pip-audit fails on any known vulnerability — stricter; non-applicable findings are ignored by ID with a reason, ADR-0005) | Dependency scan in CI |
 | NFR-S8 | Job-board credentials | Never stored or typed by the system (A-2) | Code review; no credential fields in the data model |
@@ -122,7 +122,7 @@ The MVP processes only the owner's own data, but it is built as if it had other 
 |---|---|---|---|
 | NFR-M1 | LLM provider abstraction | Switching provider for a step is a configuration change plus an eval run, no pipeline rewrite | Code review; one step runs on two providers in tests |
 | NFR-M2 | Browser access abstraction | All browsing through `BrowserGateway`; the pipeline does not call MCP directly | Code review / architecture test |
-| NFR-M3 | Infrastructure as code | 100% of cloud resources created by Terraform: the app layer applied from CI, the platform layer (IAM, data, secrets) applied by the owner from reviewed `main` (ADR-0009) | Weekly CI plan of the app layer and a monthly owner plan of the platform layer show no drift |
+| NFR-M3 | Infrastructure as code | 100% of cloud resources created by Terraform: the app layer applied from CI, the platform layer (IAM, data, secrets) applied by the owner from reviewed `main` (ADR-0009). Exception: the email sender's small Personal-mode project, set up by hand from the runbook (ADR-0010) | Weekly CI plan of the app layer and a monthly owner plan of the platform layer show no drift |
 | NFR-M4 | Build and test | One command each, non-zero exit on failure; CI runs both on every PR | CI |
 | NFR-M5 | Tests never touch real job boards | CI uses recorded pages and a fake MCP (#24) | CI network rule / hook |
 
