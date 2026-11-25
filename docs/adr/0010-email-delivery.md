@@ -10,112 +10,118 @@
 ## Context
 
 Job Finder sends a few emails, all to one recipient, the owner:
-- **Summary** after a run with at least one package (UC-09). It is sent at most 10 minutes after the run ends (NFR-R4).
-- **Alerts**: a blocked run (UC-08), a failed run, the LLM budget alert ($5 of the $10 cap, from the app's cost ledger), a restriction notice (NFR-O2). The hosting budget alert ($5, NFR-C1) is sent by Cloud Billing itself, not by Job Finder. A run that crashed is marked failed by the next worker execution (ADR-0007), which then sends its alert.
 
-Volume is a few emails a week; the worst case is a few a day. Email *applications* are out of the MVP (#4).
+- **Summary** after a run with at least one package (UC-09). Sent at most 10 minutes after the run ends (NFR-R4).
+- **Alerts** (NFR-O2):
+  - a blocked run (UC-08);
+  - a failed run;
+  - the LLM budget alert: $5 of the $10 cap, from the app's cost ledger;
+  - a restriction notice.
 
-Constraints:
-- **No custom domain** (owner input for ADR-0006). We cannot set up SPF, DKIM or DMARC for a domain of our own.
-- **The owner signs in with a personal Gmail** (ADR-0008), which is also the notification email (UC-01 step 2).
-- **The worker sends the mail.** It runs on Cloud Run (ADR-0006) and reads secrets from Secret Manager (NFR-S2).
-- **Personal data:** an email must not carry resume content; it carries titles, companies and links to the web app (ADR-0006, NFR-P6).
-- **Cost:** hosting ≤ $5/month (NFR-C1).
+The hosting budget alert (NFR-C1) is sent by Cloud Billing itself, not by Job Finder. A run that crashed is marked failed by the next worker execution (ADR-0007), which then sends the alert.
+
+Volume is a few emails a week. Email *applications* are out of the MVP (#4).
+
+**The owner's requirement: sending is a system function, not tied to any user.** Signing in as `user@gmail.com` with the same address in the profile must not mean the mail is sent through that account. The sender belongs to the application; the recipient comes from the user's settings.
+
+Other inputs:
+
+- **Domain.** The owner has a domain in Cloudflare (DNS on Cloudflare). It is the zone that also publishes A-1 through Cloudflare Tunnel. The application itself stays on `*.run.app` (ADR-0006).
+- **Sender process.** The worker on Cloud Run sends, with secrets from Secret Manager (NFR-S2).
+- **Content.** No resume content in emails (NFR-P6).
+- **Cost.** Hosting ≤ $5/month (NFR-C1).
 
 ## Decision drivers
 
-- The email reaches the owner's inbox, not spam, without a domain.
-- The credential the worker holds can do as little as possible.
+- A system sender, independent of the signed-in user and of the owner's personal mailbox.
+- Lands in the inbox: the sender's own domain, signed with SPF and DKIM, with DMARC aligned.
+- The credential the worker holds can only send, and only from our domain.
 - Free; few moving parts; testable without sending real mail (NFR-M5).
 
 ## Options considered
 
-### Option 1: Gmail API, the owner's account sends to itself, scope `gmail.send` only
+### Option 1: Cloudflare Email Service (Email Sending) on the owner's domain
 
-The worker calls the Gmail API over HTTPS with an OAuth refresh token for the owner's account. `gmail.send` is a *sensitive* scope that allows sending messages only, with no read or modify rights on the mailbox.
+The domain is onboarded under Compute → Email Service → Email Sending. Cloudflare adds DNS records on a `cf-bounce` subdomain: MX for bounces, SPF and DKIM. It also adds a DMARC record at `_dmarc.<domain>`. The domain's own MX records are not changed. The worker sends with the REST API (`POST …/accounts/{account_id}/email/sending/send` with a bearer API token); SMTP is also available.
 
-- **Good: deliverability.** The mail is sent from the owner's own Gmail to the same Gmail. Google signs it, the sender is the recipient's own account, and no domain is needed.
-- **Good: narrow credential.** A leaked token can send mail as the owner but cannot read the mailbox. The token can be revoked at any time in the Google account settings.
-- **Good: free and simple to run.** It uses HTTPS from Cloud Run, so there are no SMTP ports or relays.
-- **Verification.** Apps that request sensitive scopes normally need Google verification, but **personal use** is one of the listed exceptions. The owner sees an "unverified app" screen once, on their own consent.
-- **Bad: one-time consent and a refresh token to keep.** The consent screen must be **In production**. External apps in *Testing* get refresh tokens that expire after 7 days. Changing the Google password revokes refresh tokens that carry Gmail scopes (see Consequences).
+- Good: a real system sender, e.g. `jobfinder@<domain>`, with the domain's own DKIM; DMARC aligns. Delivery to Gmail is the expected path, not a workaround.
+- Good: sending to **verified destination addresses** of the account is free on Free and Paid plans. We send only to the owner's address, which is verified once.
+- Good: a narrow credential — an API token with only the *Email Sending: Edit* permission, scoped to the account.
+- Good: HTTPS from Cloud Run, no SMTP ports.
+- Bad: Email Sending is in **beta**. Sending to any recipient that is not a verified destination needs the paid Workers plan.
+- Bad: a DMARC record is added at the domain apex. If the domain already has one, it is merged during onboarding.
 
-### Option 2: Gmail SMTP with an app password
+### Option 2: A dedicated Gmail account through the Gmail API (`gmail.send`)
 
-Personal accounts with 2-Step Verification can create a 16-character app password and send through `smtp.gmail.com` on port 587 or 465, up to 500 messages a day.
+- Good: free, no domain needed, send-only scope.
+- Bad: one more account to keep alive (2-step verification, recovery, occasional sign-ins).
+- Bad: a refresh token that a password change or security event revokes; an OAuth client with an "unverified app" consent.
+- Bad: mail from a new Gmail address may start in spam. Kept as the **fallback** if Cloudflare Email Sending is unavailable.
 
-- **Good:** the simplest code; the same deliverability as Option 1.
-- **Bad: far too much power.** Google itself calls app passwords "not recommended". Anyone with the code has full SMTP access to the account, and an app password cannot be limited to specific actions; with IMAP it can also read the whole mailbox. That is far more than a worker needs. Rejected.
+### Option 3: A dedicated Gmail account over SMTP with an app password
 
-### Option 3: A transactional email service (Brevo, Mailjet, Resend, …) on its free tier
+- Bad: the app password gives full access to that account (Google calls app passwords "not recommended"), and they may be phased out. Rejected.
 
-- **Good:** built for application email; webhooks and logs.
-- **Bad:** without a domain we would send "from" a `gmail.com` address through someone else's servers. That fails DMARC alignment, so it is likely to land in spam or be rejected, and some services refuse it outright.
-- **Bad:** a second provider, account and API key.
-- **Revisit** if the product gets a domain or other users.
+### Option 4: A transactional email service on its free tier (Brevo, Resend, Mailjet, SMTP2GO)
 
-### Option 4: Another channel (push, Telegram bot)
+- Good: free tiers far above our volume (e.g. Brevo 300/day, Resend 100/day).
+- Bad: still needs our domain (the same DNS work as Option 1), plus a second provider, account and API key.
+- Kept as the path if the product ever emails many recipients (Option 1 would then need a paid plan).
 
-- Out of the use cases (UC-09 says email). It may be a later addition, but it does not replace email.
+### Option 5: The owner's own Gmail (the previous draft)
+
+- Rejected by the owner: it ties sending to a user's mailbox.
 
 ## Decision
 
-**Option 1: the Gmail API with scope `gmail.send` only, the owner's Gmail sending to itself.**
+**Option 1: Cloudflare Email Sending from a system address on the owner's domain, sent by the worker through the REST API. Fallback: Option 2.**
 
-1. **OAuth client.** One OAuth client, "Job Finder mailer", in the `job-finder` project:
-   - type *Web application*, separate from the IAP client (ADR-0008), with one authorised redirect URI: `https://developers.google.com/oauthplayground`;
-   - scope `https://www.googleapis.com/auth/gmail.send`, nothing else;
-   - the Gmail API (`gmail.googleapis.com`) is enabled in the platform layer (ADR-0009).
+1. **Domain and sender (manual, once — runbook in #22):**
+   - onboard the domain in Email Sending; check that the `cf-bounce` and `_dmarc` records are active;
+   - the sender is `jobfinder@<domain>`, name "Job Finder", with no mailbox behind it. Replies are not expected; the message says so;
+   - add the owner's notification address as a **verified destination address** in Cloudflare; the owner confirms it from the verification email.
+2. **Credential:**
+   - a Cloudflare API token with only **Email Sending: Edit**, scoped to the one account, with no other permissions. It is stored in the secret `email-sender` as JSON: account id, token, sender address;
+   - this is the "email key" of ADR-0006 and ADR-0009, so the project still has 5 secrets;
+   - only the `worker` service account can read it; the owner adds the value (ADR-0009). Rotation every 90 days (NFR-S5).
+   - The domain name stays out of the public repo: it is the A-1 zone, so it lives only in this secret and in Cloudflare.
+3. **Recipient:**
+   - "To" is the notification email from `settings/owner` (UC-02), by default the sign-in address (UC-01);
+   - each message has exactly one recipient, with no Cc or Bcc, and no code path sends to anyone else (tested);
+   - Cloudflare itself accepts only verified destinations on the free plan, a second guard. Changing the notification email in UC-02 therefore also requires verifying the new address in Cloudflare; the settings page says so.
+4. **Content:**
+   - **Summary:** profile name, run date, counts, and for each package its title, company, channel and a link to the package page;
+   - **Alert:** the reason and a link to the run;
+   - **never:** resume text, answers, cover notes or dossier facts (NFR-P6);
+   - plain text plus simple HTML, no external images or tracking; the subject starts with `[Job Finder]`;
+   - **untrusted input:** titles and company names come from job boards. CR and LF are removed from the subject; the HTML body is escaped by the template engine (autoescape); the JSON payload is built with a serializer, not by string concatenation. Tests include a title with `\r\nBcc:` and HTML markup.
+5. **Code.** `jobfinder.notify` has an interface `Mailer` with three implementations:
+   - `CloudflareMailer`, the REST API with `httpx`;
+   - `GmailApiMailer`, the fallback, added only if needed;
+   - `FakeMailer`, for tests.
 
-   **The consent screen is shared.** A project has one consent screen, also used by IAP: External, **In production**, not verified (personal use). Adding `gmail.send` to it does not change IAP sign-in, because Google shows the "unverified app" warning only when an app actually requests a sensitive scope, and IAP requests only the basic profile and email.
-2. **One-time consent (owner, manual).** It is an additional bootstrap step after ADR-0009's step 4 and goes into the runbook in #22:
-   - in the OAuth Playground, the owner chooses "use your own OAuth credentials" with the mailer client and grants `gmail.send` with their Gmail;
-   - the owner copies the refresh token straight into the secret (step 3) from Cloud Shell or the Console.
+   Sending comes after the packages are stored (NFR-R5, ADR-0007 write order). A failed send is retried twice with backoff, and the result is recorded on the run.
+6. **When sending fails** (token revoked, domain removed, Cloudflare unavailable):
+   - the run record gets `email: failed (<error class>)`; neither it nor the logs contain the address, the token or the body (NFR-P6);
+   - the web app shows a banner "Email delivery is not working"; the run still counts as completed;
+   - the runbook covers checking the token, the destination verification and the DNS records.
 
-   It never runs in the dev container (no cloud credentials, firewall; ADR-0002), and the token never passes through it, the repo or chat.
-3. **Secret.** One Secret Manager secret, `gmail-sender`, holds a JSON value with the client id, the client secret and the refresh token. It is the "email key" planned in ADR-0006, so the project still has 5 secrets. Only the `worker` service account can read it. The value is added by the owner (ADR-0009) and never goes through the repo, CI or Terraform.
-4. **Sender and recipient.**
-   - "From" is the owner's Gmail; "To" is the notification email in `settings/owner`, by default the same address (UC-01).
-   - The owner may change the notification email (UC-02). It is a deliberate setting, editable only through the signed-in web app (ADR-0008), so "sends to itself" is the default, not a guarantee.
-   - Every message has exactly one recipient, the current notification email; there is no Cc or Bcc and no code path that sends to anyone else (tested).
-   - The subject starts with `[Job Finder]`, so the owner can filter the mail.
-5. **Content.**
-   - **Summary:** profile name, run date, counts, and for each package its title, company, channel and a link to the package page.
-   - **Alert:** the reason and a link to the run.
-   - Never resume text, answers, cover notes or dossier facts (NFR-P6).
-   - Plain text plus simple HTML; no external images or tracking.
-   - Titles and company names come from job boards and are untrusted: the message is built with Python's `email.message.EmailMessage` (not string concatenation); CR and LF are removed from every header value, so a title cannot inject a header such as `Bcc`; the HTML body is escaped by the template engine (autoescape). Tests include a title with `\r\nBcc:` and HTML markup.
-6. **Code.** `jobfinder.notify` has an interface `Mailer` with two implementations:
-   - `GmailApiMailer`: Gmail API over HTTPS. It refreshes the access token from the refresh token and keeps nothing on disk.
-   - `FakeMailer`: records messages for tests.
-   
-   Sending runs after the packages are stored (NFR-R5, ADR-0007 write order). One failed send is retried twice with a backoff, and the result is recorded on the run.
-7. **When sending fails.** If the token was revoked or has expired, nothing can be emailed, so the alert cannot be an email. Instead:
-   - the run record gets `email: failed (<error class>)`; neither it nor the logs contain the address, the token or the message body (NFR-P6);
-   - the web app shows a banner: "Email delivery is not working — re-authorise". The run itself still counts as completed;
-   - the runbook has a short re-consent procedure.
+**Deliverability (the issue's SPF/DKIM question).** The domain is onboarded in Cloudflare, so SPF and DKIM are published and DMARC aligns for `jobfinder@<domain>`. The owner may add a Gmail filter "never send to spam" for the sender once, as extra insurance.
 
-**Deliverability (the issue's SPF/DKIM question).** The mail is sent by Gmail for a `gmail.com` address, so Google's own SPF and DKIM sign it and DMARC aligns. We have no domain to configure. If the product gets a domain later, the choice is revisited (Option 3).
+**Cost.** Free: sending only to the verified owner address; Cloudflare DNS is already in use.
 
-**Limits and cost.** Gmail API quotas are far above a few emails a day; the API is free.
-
-Out of scope:
-- email *applications* (#32);
-- other recipients or a custom domain;
-- push or chat notifications.
+Out of scope: email *applications* (#32); other recipients; receiving mail; push or chat notifications.
 
 ## Consequences
 
-- Positive: reliable delivery to the owner's inbox with no domain and no extra provider; free.
-- Positive: the worker's credential can only send mail; it cannot read the mailbox. It sits in a secret that only `worker` can read.
-- Negative: the token can stop working: if the owner revokes it, after a Google password change (which revokes tokens with Gmail scopes), or after some security events. Sending then stops until the owner re-consents. This is visible in the run record and a web banner, not by email.
-- Rotation (NFR-S5): the refresh token is revocable at any moment and is replaced by re-consent; the mailer client secret is rotated with the other keys every 90 days. NFR-S5 now names both.
-- Negative: the owner sees an "unverified app" screen once during consent. That is expected for a personal-use app.
-- Negative: it is tied to Gmail. Another email provider needs a new ADR.
+- Positive: a system sender that belongs to the application, on its own domain with proper authentication; the user's mailbox is not involved.
+- Positive: a narrow, account-scoped token that can only send; free at our volume.
+- Positive: the domain is already in Cloudflare, so there is no new provider.
+- Negative: Email Sending is in beta; behaviour or pricing may change. The `Mailer` interface keeps the switch to Option 2 or 4 a small change.
+- Negative: on the free plan only verified addresses receive mail; a new notification address needs verification in Cloudflare. That matches a single-user MVP. Many recipients would need a paid plan or Option 4.
+- Negative: a few manual DNS and dashboard steps on the owner's Cloudflare account.
 - Follow-ups:
-  - **#22:** the OAuth client (manual step), the `gmail-sender` secret, the consent step in the runbook, `Mailer` with `FakeMailer` and tests.
-  - **#30:** summary email content (UC-09).
-  - **#27:** blocked-run alert (UC-08).
-  - **#33:** budget and failure alerts.
-  - ADR-0006's "email key" (and ADR-0009's list of secret values) means the `gmail-sender` secret.
-  - On acceptance: CLAUDE.md index.
+  - **#22:** the onboarding steps in the runbook; the `email-sender` secret; `Mailer` with `CloudflareMailer` and `FakeMailer` and their tests.
+  - **#30:** summary content (UC-09). **#27:** blocked-run alert (UC-08). **#33:** budget and failure alerts.
+  - **UC-02:** a changed notification email must be verified in Cloudflare (noted in UC-02).
+  - **On acceptance:** CLAUDE.md index.
