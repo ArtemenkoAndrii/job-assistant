@@ -36,7 +36,7 @@ Each requirement has an ID, a measurable target and a way to verify it. Values t
 | NFR-B1 | Browser is read only | No form filled or submitted; no account changes | Tool allowlist (no typing into forms, no uploads, no JavaScript from the LLM); review of agent traces |
 | NFR-B2 | Search pages per source per run | ≤ **2** (≈ 50 LinkedIn results; with a weekly run, search covers the past week) | Counter per run; hard stop |
 | NFR-B3 | Vacancies opened per run | ≤ **25** | Counter per run; hard stop |
-| NFR-B4 | Employers researched per run | ≤ **8**, ≤ 3 pages each on job boards | Counter per run |
+| NFR-B4 | Employers researched per run | ≤ **8**, ≤ 3 pages each on job boards and ≤ 3 on the company's own website (ADR-0011) | Counter per run |
 | NFR-B5 | Page loads per job board per day, all profiles together | ≤ **150** | Daily counter; further runs that day are skipped |
 | NFR-B6 | Pace | **Random pause of 1–5 s** between browser actions, so navigation looks less like a bot; no parallel browsing | Agent trace timestamps |
 | NFR-B7 | Stop conditions | Login page, authwall, CAPTCHA, "Just a moment…", restriction or unusual-activity notice → stop at once, no retries (UC-08) | Tests on recorded pages (#24) |

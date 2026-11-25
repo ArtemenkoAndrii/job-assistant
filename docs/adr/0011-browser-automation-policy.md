@@ -68,11 +68,12 @@ The browsing agent sees only gateway tools. Each maps to one MCP tool and passes
 | Gateway tool | MCP tool | Checks |
 |---|---|---|
 | `navigate(url)` | `browser_navigate` | URL policy (§3); pace; counts a page load |
-| `snapshot(target?)` | `browser_snapshot` | Targeted to a region where possible; never `filename`; output size capped |
+| `snapshot(target?)` | `browser_snapshot` | Targeted to the content region (result list, detail pane, company section), not the site header with the signed-in user; never `filename`; output size capped; owner identifiers redacted (§7) |
 | `find(text)` | `browser_find` | Read only |
 | `click(ref)` | `browser_click` | Click policy (§4); pace; counts a page load if the URL changes |
 | `back()` | `browser_navigate_back` | Pace; counts a page load |
-| `tabs()` / `close_extra_tabs()` | `browser_tabs` (list, select, close) | At most 2 tabs; no opening a tab with an arbitrary URL |
+| `tabs()` / `close_extra_tabs()` | `browser_tabs` (list, select, close) | At most 2 tabs; no opening a tab with an arbitrary URL; the gateway selects the task's tab before every action (spike #2 saw a tab switch) |
+| `web_search(company, topic)` (dossier task only) | provider's web search tool (ADR-0004), not A-1 | Query built by the gateway from the company name and a fixed topic (reviews, salaries, news) — never personal data; results are untrusted text; result URLs are recorded for §3 |
 | `wait(seconds)` | `browser_wait_for` | ≤ 5 s, time only |
 
 **Never called, whatever the model asks** (the gateway has no code path for them):
@@ -93,10 +94,15 @@ Any tool argument named `filename` is refused (spike #2: paths resolve on A-1).
 ### 3. Navigation (URL) policy
 
 - Only `https`.
+- **Provenance.** `navigate(url)` is allowed only for:
+  - a URL that appears verbatim in the task's latest snapshot or web-search result (the gateway keeps that set);
+  - or a job-board search URL that the gateway builds itself from the search criteria.
+
+  Agents cannot compose URLs.
 - **Job boards:** the LinkedIn and Glassdoor job, search and company paths. A denylist rejects login, sign-up, account, settings, messaging, notifications, feed, profile-editing, apply and checkout paths.
-- **Company websites (dossier):** only a host taken from a link on a job-board page of that company, or from the provider's web search result for that company; its pages within that host; at most 3 pages (NFR-B4).
-- Query strings are allowed only for known search parameters on job boards. On other hosts, URLs are passed as found on the page. Agents never build URLs with data of their own.
-- Redirects are followed by the browser; the gateway checks the final URL against the same policy and the stop triggers (§6).
+- **Company websites (dossier):** only the host given in the company's own *website* field on its LinkedIn or Glassdoor company page, or in a web-search result for that company. Links inside vacancy text never qualify, since anyone can write them. The gateway records the host per company; pages within that host only, at most 3 (NFR-B4, extended to company sites).
+- **After the fact.** Redirects and clicks can change the URL. The gateway checks the final URL against this policy and the stop triggers (§6). An off-policy URL makes the gateway go back once and return an `off-policy` error to the task; a second one ends the task. Only GET requests are made, and the agent cannot add data to them, so an off-policy page receives nothing from us.
+- `--allowed-origins` on A-1 is not used: company hosts are not known in advance. The gateway's provenance check takes its place.
 
 ### 4. Click policy
 
@@ -131,7 +137,7 @@ When a limit is reached, the task ends with what it has; it is not an error.
 
 ### 6. Stop triggers (NFR-B7)
 
-After every navigate, click and back, the gateway checks the URL, the title and the snapshot text:
+After **every** tool result (navigate, click, back, snapshot, find, tabs), the gateway checks the URL, the title and the text. Patterns cover the sites' English and Spanish versions (spike #2 saw Spanish locale content); HTTP 403/429 is used when the MCP result exposes it, otherwise the page text:
 
 | Trigger | Examples | Result |
 |---|---|---|
@@ -141,12 +147,24 @@ After every navigate, click and back, the gateway checks the URL, the title and 
 | Unknown dialog | a dialog the click policy does not know | `BrowserBlocked(dialog)` |
 | A-1 unreachable or errors repeatedly | MCP or Cloudflare Access errors | `BrowserBlocked(a1)` |
 
-`BrowserBlocked` stops browsing at once, with no retries. The run keeps what it already has, gets status *blocked: reason*, and the user is notified (UC-08, ADR-0010). A restriction also pauses the board (§1). The patterns live in one versioned file and are tested against recorded pages (#24).
+`BrowserBlocked` stops that browsing **at once, with no retries**. How far the stop reaches depends on where it happened (UC-07 A2/A4, UC-08):
+
+| Where | Login / challenge | Restriction | A-1 unreachable |
+|---|---|---|---|
+| A job board (search, vacancy) | That board is skipped for the rest of the run; the other board continues | That board is skipped and its schedule paused (§1) | The whole run stops |
+| A company website (dossier) | That source is marked missing in the dossier; the run continues | — | The whole run stops |
+
+- The run is *blocked: reason* only if every job board is blocked or A-1 is unreachable. Otherwise it completes, and the skipped board is listed in the run and the summary.
+- Notifications (ADR-0010): a login on a board or a restriction always notifies, because the owner must act; a challenge is shown in the run and the summary only.
+- The patterns live in one versioned file and are tested against recorded pages (#24).
 
 ### 7. Prompt-injection defences (reader / writer separation)
 
 - **Readers have no write tools.** Browsing agents can only read and navigate under §2–§4. Nothing they can call submits, types, uploads or runs JavaScript. A page that says "click Apply" or "type your phone number" cannot be obeyed.
-- **No personal data in browsing contexts.** A browsing task receives only search criteria (title keywords, location, work type) or a company or vacancy reference. It never receives the resume, contacts or answers. Even a successful injection has nothing to leak; navigation is also limited to §3, so it cannot carry data to an arbitrary host.
+- **Minimal personal data in browsing contexts.**
+  - A browsing task receives only search criteria (title keywords, location, work type) or a company or vacancy reference. It never receives the resume, contacts or answers.
+  - Pages seen while signed in can show the owner's name, employer and city in the site header (spike #2). Snapshots are therefore targeted to content regions, and the gateway redacts the owner's configured identifiers (name, email) from every result.
+  - Navigation is limited by §3 provenance, so an injection cannot carry data to a host of its choosing.
 - **Structured outputs only.** Browsing tasks return typed models (Pydantic). URLs are validated against §3; text fields are length-capped. Raw page text is dropped after extraction (ADR-0004) and never reaches the steps that see the resume.
 - **Writers have no browser.** Steps that see the resume (tailor, review, answers) have no tools at all. They receive extracted fields marked as untrusted data in the prompt.
 - **No sender in the MVP.** Submitting applications (#32) would be a separate agent with its own ADR and human approval per application.
@@ -160,7 +178,7 @@ After every navigate, click and back, the gateway checks the URL, the title and 
 ### 9. Requirements on A-1 (owner's configuration, out of project scope)
 
 Playwright MCP is not a security boundary, and it enables `browser_run_code_unsafe` by default. Whoever holds the A-1 service token can therefore run code in the A-1 browser. Hence:
-- The A-1 token is held only by `worker` (ADR-0006) and rotated every 90 days (NFR-S5).
+- The runtime copy of the A-1 token is readable only by `worker` (ADR-0006); the spike kits use the owner's own copy outside the product. Rotated every 90 days (NFR-S5).
 - A-1 runs with:
   - `--shared-browser-context` (one context for our single session; the spike #3 blank pages);
   - a persistent `--user-data-dir` for the logged-in profile;
@@ -191,8 +209,9 @@ Out of scope: submitting applications (#32); operating A-1; the post-MVP review 
 - Negative: A-1 itself still exposes powerful tools; the protection depends on keeping its token secret, until the owner adds a tool-filtering proxy.
 - Follow-ups:
   - **#22:** `BrowserGateway` skeleton with the tool allowlist and one navigate + snapshot.
-  - **#24:** recorded pages for stop triggers and the click policy.
+  - **#24:** recorded pages for stop triggers (English and Spanish), the click policy and URL provenance.
+  - **#25:** an eval with injected vacancy text (NFR-S6): the agent's output and tool calls stay within this policy.
   - **#27:** the search flow under this policy.
   - **#38:** review against real runs.
   - **The owner:** A-1 flags and the validation checklist (§9–§10).
-  - **On acceptance:** CLAUDE.md index; architecture Q7.
+  - **On acceptance:** CLAUDE.md index.
