@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-11-25 |
 | **Issue** | #21 |
 | **Deciders** | ArtemenkoAndrii (owner); drafted with Claude |
@@ -171,4 +171,3 @@ Out of scope:
 - Follow-ups:
   - **#22:** `jobfinder.notify` (events, `Notifier`, `NotificationChannel`, `EmailChannel`, `FakeChannel`) with tests incl. header injection and channel isolation; the `email-sender` secret; the sender-account and Personal-mode steps in the runbook; a check that a token issued at least 8 days earlier still works.
   - **#27 / #30 / #33:** emit the blocked, summary, budget and failure events.
-  - **On acceptance:** CLAUDE.md index.
