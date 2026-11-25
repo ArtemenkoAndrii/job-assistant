@@ -18,6 +18,7 @@ run "shellcheck" check_shell
 run "json" check_json
 run "markdown links" python3 scripts/check_md_links.py
 run "A-1 only from runtime and spikes" python3 scripts/check_a1.py
+run "no Proposed ADRs (accept before merge)" python3 scripts/check_adr_status.py
 
 # Python application (ADR-0005)
 APP=apps/jobfinder
