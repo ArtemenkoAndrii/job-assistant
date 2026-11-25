@@ -77,7 +77,7 @@ Constraints:
 
 | | `infra/platform` | `infra/app` |
 |---|---|---|
-| **Holds** | APIs; state bucket; WIF pool and provider; CI and runtime service accounts and **all** their roles; project-level IAM, including the owner's IAP access; Firestore database, TTL policy, backup schedule, security rules; files bucket with lifecycle and soft delete; Secret Manager secrets and their access bindings; Artifact Registry with cleanup policy; logging retention; budget; Firebase link | Cloud Run service (image digest, env, secret references, IAP on), Cloud Run job, Cloud Scheduler job, `run.invoker` for the IAP agent on the service, Firestore composite indexes |
+| **Holds** | APIs; state bucket; WIF pool and provider; CI and runtime service accounts and **all** their roles; project-level IAM, including the owner's IAP access (granted at project level: with one IAP-protected resource it is equivalent to the service-level grant in ADR-0008, and it keeps the owner's email out of the app layer); Firestore database, TTL policy, backup schedule, security rules; files bucket with lifecycle and soft delete; Secret Manager secrets and their access bindings; Artifact Registry with cleanup policy; logging retention; budget; Firebase link | Cloud Run service (image digest, env, secret references, IAP on), Cloud Run job, Cloud Scheduler job, `run.invoker` for the IAP agent on the service, Firestore composite indexes |
 | **Applied by** | the owner, from Cloud Shell, after the change is merged to `main` | CI (`deploy.yml`), on push to `main` |
 | **State** | `gs://<state-bucket>/platform/`, readable only by the owner | `gs://<state-bucket>/app/`, readable by the CI accounts; holds no personal data |
 | **Changes** | rarely: a new secret, a role, a retention rule | every release |
@@ -95,8 +95,8 @@ WIF pool `github`, provider `github-actions`:
 
 | Service account | Principal that may use it | Roles (all in `job-finder`) |
 |---|---|---|
-| `app-plan` | any workflow run of this repo (pull requests from its branches) | `run.viewer`, `cloudscheduler.viewer`, `datastore.indexViewer`, `iam.serviceAccountViewer`; `storage.objectUser` on the state bucket with an IAM condition on the `app/` prefix (needed for the state lock). **No** data, secret, IAM-admin or platform-state access |
-| `deployer` | only `workflow_ref == 'ArtemenkoAndrii/job-assistant/.github/workflows/deploy.yml@refs/heads/main'` **and** `event_name == 'push'` | `run.developer`; `iam.serviceAccountUser` on `web` and `worker` only; `cloudscheduler.admin`; `datastore.indexAdmin`; `artifactregistry.writer` on the image repository; `storage.objectUser` on `app/` state; `run.services.setIamPolicy` through a custom role on `jobfinder-web` only. **No** project IAM, data, secret-value, bucket-admin or billing rights |
+| `app-plan` | any workflow run of this repo (pull requests from its branches) | `run.viewer`, `cloudscheduler.viewer`, `datastore.indexViewer`, `iam.serviceAccountViewer`; `storage.objectViewer` on the `app/` prefix of the state bucket (IAM condition) and `storage.objects.list` on the bucket (custom role; lists names only). It plans with `-lock=false`, so it can neither write nor lock the state. **No** data, secret, IAM-admin or platform-state access |
+| `deployer` | only `workflow_ref == 'ArtemenkoAndrii/job-assistant/.github/workflows/deploy.yml@refs/heads/main'` **and** `event_name == 'push'` | `run.developer`; `iam.serviceAccountUser` on `web`, `worker` and `scheduler` only; `cloudscheduler.admin`; `datastore.indexAdmin`; `artifactregistry.writer` on the image repository; `storage.objectUser` on `app/` state; a custom role with `run.services.setIamPolicy` on `jobfinder-web` (invoker for the IAP agent) and `run.jobs.setIamPolicy` on `jobfinder-worker` (who may start it: `web` and `scheduler`, ADR-0006). **No** project IAM, data, secret-value, bucket-admin or billing rights |
 
 - **Forks:** pull requests from forks get no OIDC token, so they cannot use either account.
 - **Other triggers:** binding `deployer` to the workflow file and the `push` event keeps `pull_request_target`, `workflow_run`, `issue_comment` and `workflow_dispatch` runs on `main` away from it. `scripts/lint.sh` will also fail on any `pull_request_target` workflow (added in #22).
@@ -112,7 +112,7 @@ WIF pool `github`, provider `github-actions`:
 | `deploy.yml` | push to `main` that changes `infra/app/**` or `apps/**` | build and push the image, `terraform apply` of the app layer as `deployer` with the new digest, then a smoke check |
 | `drift.yml` | weekly | plan of the **app** layer as `app-plan`; fails on any difference |
 
-The platform layer is not planned by CI: that would need read access to IAM, data and billing. The owner runs `terraform plan` of the platform layer in Cloud Shell once a month and after every platform change. This is a recorded exception to NFR-M3's "from CI", updated in the NFR.
+The platform layer is not planned by CI: that would need read access to IAM, data and billing. The owner runs `terraform plan` of the platform layer in Cloud Shell once a month and after every platform change. This is a recorded exception to NFR-M3's "from CI" (NFR-M3 updated in this PR).
 
 The GitHub Environment `production` (deployments only from `main`) holds only non-secret identifiers as variables: project ID and number, WIF provider, service account emails. No secret is needed in GitHub.
 
@@ -150,7 +150,7 @@ Out of scope:
 - Negative: NFR-M3 is relaxed: the platform layer is applied and drift-checked by the owner, not CI.
 - Negative: one environment, so a bad deploy hits the only environment. Deploys are small, reviewed and smoke-checked, and can be rolled back to the previous digest.
 - Follow-ups:
-  - **#22:** `infra/platform`, `infra/app`, the workflows, the `pull_request_target` lint rule, the runbook, the first deploy.
+  - **#22:** `infra/platform`, `infra/app`, the workflows, the `pull_request_target` lint rule, a check that fails if `allUsers` gets any role on the service, the runbook, the first deploy; confirm the GCS backend works with `app-plan`'s read-only roles.
   - **Tooling:** Terraform in the dev container; `terraform fmt` in `scripts/lint.sh`; `validate` in CI (needs the registry).
   - **ADR-0006 and ADR-0007** listed a `deployer` with "no data access". This ADR makes that precise: no data or IAM rights of its own, but it deploys code that runs with the app's access.
   - **Docs on acceptance:** NFR-M3 wording; architecture Q3; CLAUDE.md index.
