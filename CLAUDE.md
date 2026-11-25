@@ -33,7 +33,7 @@ CI runs all four on every PR, then builds the container image and smoke-tests it
 ## Workflow
 
 1. Work starts from a GitHub issue; branch from the latest `main`, name `<issue>-<short-slug>`, keep it short-lived ([ADR-0003](docs/adr/0003-branching-strategy.md)).
-2. Product changes go **intent → spec → plan → code**. Specs follow the `writing-specs` skill. Plan in plan mode first; do not write code before the plan is approved.
+2. Product changes go **intent → spec → plan → code**. Specs follow the `writing-specs` skill. Plan in plan mode first; do not write code before the plan is approved. Plan mode is read-only: right after approval, the first commit saves the approved plan as `docs/changes/<issue>-<slug>/plan.md` (from `docs/templates/plan.md`); code comes after.
 3. Open a PR with `Closes #N`; the owner reviews and squash-merges. Never push to `main` (a ruleset blocks it). To update a branch, merge `main` into it; never force-push a branch under review.
 4. If the implementation diverges from `plan.md`, update it in the same commit.
 

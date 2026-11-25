@@ -13,6 +13,7 @@ docs/changes/
 - Folder name: `<issue number>-<short-slug>`.
 - Templates: [docs/templates](../templates/).
 - Each artifact is committed and reviewed in the same PR as the code, or in an earlier PR when the gate needs a separate approval.
+- Plan mode is read-only, so the approved plan exists only in the session until it is written down: the first commit after approval saves it as `plan.md`, before any code.
 - If the implementation diverges from `plan.md`, the plan is updated in the same commit.
 
 Not every change needs all three: a bug fix or a small refactor can go straight to a PR with a test; an architecture decision goes to [docs/adr](../adr/).
