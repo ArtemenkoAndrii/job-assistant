@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-11-25 |
 | **Issue** | #16 |
 | **Deciders** | ArtemenkoAndrii (owner); drafted with Claude |
@@ -153,4 +153,3 @@ Out of scope:
   - **#22:** `infra/platform`, `infra/app`, the workflows, the `pull_request_target` lint rule, a check that fails if `allUsers` gets any role on the service, the runbook, the first deploy; confirm the GCS backend works with `app-plan`'s read-only roles.
   - **Tooling:** Terraform in the dev container; `terraform fmt` in `scripts/lint.sh`; `validate` in CI (needs the registry).
   - **ADR-0006 and ADR-0007** listed a `deployer` with "no data access". This ADR makes that precise: no data or IAM rights of its own, but it deploys code that runs with the app's access.
-  - **Docs on acceptance:** NFR-M3 wording; architecture Q3; CLAUDE.md index.
