@@ -122,7 +122,7 @@ The MVP processes only the owner's own data, but it is built as if it had other 
 |---|---|---|---|
 | NFR-M1 | LLM provider abstraction | Switching provider for a step is a configuration change plus an eval run, no pipeline rewrite | Code review; one step runs on two providers in tests |
 | NFR-M2 | Browser access abstraction | All browsing through `BrowserGateway`; the pipeline does not call MCP directly | Code review / architecture test |
-| NFR-M3 | Infrastructure as code | 100% of cloud resources created by Terraform: the app layer applied from CI, the platform layer (IAM, data, secrets) applied by the owner from reviewed `main` (ADR-0009) | Weekly CI plan of the app layer and a monthly owner plan of the platform layer show no drift |
+| NFR-M3 | Infrastructure as code | 100% of cloud resources created by Terraform: the app layer applied from CI, the platform layer (IAM, data, secrets) applied by the owner from reviewed `main` (ADR-0009). Exception: the email sender's small Personal-mode project, set up by hand from the runbook (ADR-0010) | Weekly CI plan of the app layer and a monthly owner plan of the platform layer show no drift |
 | NFR-M4 | Build and test | One command each, non-zero exit on failure; CI runs both on every PR | CI |
 | NFR-M5 | Tests never touch real job boards | CI uses recorded pages and a fake MCP (#24) | CI network rule / hook |
 

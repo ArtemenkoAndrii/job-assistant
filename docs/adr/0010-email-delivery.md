@@ -49,7 +49,7 @@ Other inputs:
 
 **E1. A dedicated Gmail account, Gmail API with scope `gmail.send`, OAuth client in Personal mode.**
 
-*Personal mode* is a Google Auth Platform user type for applications built solely for the creator's own use:
+*Personal mode* is a Google Auth Platform user type for applications built solely for the creator's own use ([Google Cloud Help: Manage App Audience — Personal mode](https://support.google.com/cloud/answer/15544987)):
 - Only the Google Account that created the application can authorise it.
 - It is not subject to the 7-day test-user token expiration, nor to the OAuth user cap.
 - It needs no OAuth branding or scope verification.
@@ -115,7 +115,9 @@ channels: EmailChannel (Gmail API)        — MVP
 - `Notifier` calls every enabled channel independently; a failing channel does not stop the others.
 - Each channel retries twice with backoff (30 s, 2 min — at most ~3 min, within NFR-R4).
 - The result per channel is recorded on the run.
-- If the worker crashes between "run completed" and a recorded delivery, the next worker execution re-sends summaries for completed runs with no delivery record that ended less than a day ago.
+- Each attempt has a 20-second request timeout, so a run's notifications finish within about 4 minutes (NFR-R4).
+- Delivery is **at least once**. If the worker crashes, or loses its lease, between "run completed" and a recorded delivery, the next worker execution re-sends to each channel that has no delivery record for that run, for runs that ended less than a day ago. The message may then arrive twice. It may also arrive later than NFR-R4's 10 minutes: up to the next hourly tick. Both are accepted for this rare case.
+- The delivery record (per channel: status, time, error class) is a new field on `runs` (ADR-0007's run document).
 
 **Failure visibility.**
 - A channel that keeps failing sets `delivery: failed (<channel>, <error class>)` on the run and a banner in the web app ("Notifications are not being delivered").
@@ -124,7 +126,7 @@ channels: EmailChannel (Gmail API)        — MVP
 **Untrusted input.**
 - Titles and company names come from job boards.
 - The email channel builds messages with `email.message.EmailMessage`, removes CR and LF from header values (so a title cannot inject `Bcc:`), and autoescapes HTML.
-- Every channel has exactly one recipient per message.
+- Every channel has exactly one recipient per message. The notification email setting (UC-02) is parsed as a single address; commas, CR and LF are rejected.
 - Tests use a title containing `\r\nBcc:` and HTML markup.
 
 ### Email channel
@@ -138,7 +140,7 @@ channels: EmailChannel (Gmail API)        — MVP
    - goes through the Personal mode onboarding (user type **Personal**, application type *Web application* with the OAuth Playground redirect URI);
    - grants `https://www.googleapis.com/auth/gmail.send` once, in the OAuth Playground with that client, which returns a refresh token.
 
-   The project needs no billing and holds nothing else. It is deliberately separate from `job-finder`, whose user type is External because of IAP (ADR-0008). User types cannot be mixed or switched, and this keeps the mail credential apart from the application's cloud. Its few manual settings are the one part of the system outside Terraform (an exception to NFR-M3, recorded here and in the runbook).
+   The project needs no billing and holds nothing else. It is deliberately separate from `job-finder`, whose user type is External because of IAP (ADR-0008). User types cannot be mixed or switched, and this keeps the mail credential apart from the application's cloud. Its few manual settings are the one part of the system outside Terraform (an exception to NFR-M3, recorded in NFR-M3 and the runbook).
 3. **Secret.**
    - The secret `email-sender` in `job-finder` holds JSON: client id, client secret, refresh token, sender address.
    - It is the "email key" of ADR-0006 and ADR-0009 (still 5 secrets).
@@ -151,7 +153,8 @@ channels: EmailChannel (Gmail API)        — MVP
 5. **Rotation (NFR-S5).**
    - The client secret is rotated with the other keys every 90 days.
    - The refresh token is replaced by re-consent on suspicion or after a password change of the sender account.
-6. **Deliverability (SPF/DKIM).** Gmail signs mail from `gmail.com` addresses; SPF, DKIM and DMARC align without a domain of ours. The owner marks the first message "not spam" or adds the sender to contacts once.
+6. **Sent folder.** The sender account's Sent folder keeps a copy of every notification (recipient, profile name, titles, links — no resume content). This is outside ADR-0007's TTL retention. Accepted for the MVP; the runbook includes emptying it when the account is reviewed, and `gmail.send` cannot delete mail by design.
+7. **Deliverability (SPF/DKIM).** Gmail signs mail from `gmail.com` addresses; SPF, DKIM and DMARC align without a domain of ours. The owner marks the first message "not spam" or adds the sender to contacts once.
 
 Out of scope:
 - other channels (Telegram etc.): added later as one `NotificationChannel` each, with their own ADR only if they bring a new provider or secret;
