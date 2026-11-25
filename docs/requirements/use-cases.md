@@ -60,7 +60,8 @@
 - **Main flow:** the user opens Settings and changes:
   - the notification email;
   - the **re-apply period** — after how many days a vacancy the user has applied to may appear in results again (default **90 days**).
-- **Alternative flows:** A1. Invalid email or a period below 1 day → field error, nothing saved.
+- **Alternative flows:**
+  - A1. Invalid email or a period below 1 day → field error, nothing saved.
   - A2. A new notification email must also be verified as a destination address in Cloudflare before mail reaches it ([ADR-0010](../adr/0010-email-delivery.md)); the page says so.
 - **Result:** summaries and alerts go to the chosen address; the applied registry (UC-15) uses the chosen period.
 

@@ -35,7 +35,7 @@ Other inputs:
 
 - A system sender, independent of the signed-in user and of the owner's personal mailbox.
 - Lands in the inbox: the sender's own domain, signed with SPF and DKIM, with DMARC aligned.
-- The credential the worker holds can only send, and only from our domain.
+- The credential the worker holds can do as little as possible: send mail, nothing else in the account.
 - Free; few moving parts; testable without sending real mail (NFR-M5).
 
 ## Options considered
@@ -83,7 +83,8 @@ The domain is onboarded under Compute → Email Service → Email Sending. Cloud
 2. **Credential:**
    - a Cloudflare API token with only **Email Sending: Edit**, scoped to the one account, with no other permissions. It is stored in the secret `email-sender` as JSON: account id, token, sender address;
    - this is the "email key" of ADR-0006 and ADR-0009, so the project still has 5 secrets;
-   - only the `worker` service account can read it; the owner adds the value (ADR-0009). Rotation every 90 days (NFR-S5).
+   - only the `worker` service account can read it; the secret and its binding are created in the platform layer, the owner adds the value (ADR-0009). Rotation every 90 days (NFR-S5);
+   - limits of the token: it is account-scoped, so it could send from any domain onboarded in that Cloudflare account and change the sending configuration. Only this one domain is onboarded for sending. On the free plan, a leaked token can reach only verified destinations; if the account ever moves to the paid Workers plan, this guard disappears, so the token is reviewed (and zone-scoped if Cloudflare offers it) before such a change.
    - The domain name stays out of the public repo: it is the A-1 zone, so it lives only in this secret and in Cloudflare.
 3. **Recipient:**
    - "To" is the notification email from `settings/owner` (UC-02), by default the sign-in address (UC-01);
@@ -100,7 +101,8 @@ The domain is onboarded under Compute → Email Service → Email Sending. Cloud
    - `GmailApiMailer`, the fallback, added only if needed;
    - `FakeMailer`, for tests.
 
-   Sending comes after the packages are stored (NFR-R5, ADR-0007 write order). A failed send is retried twice with backoff, and the result is recorded on the run.
+   Sending comes after the packages are stored (NFR-R5, ADR-0007 write order). A failed send is retried twice with backoff (30 s, then 2 min, so at most about 3 minutes, within NFR-R4's 10 minutes), and the result is recorded on the run.
+   - Accepted gap: if the worker crashes after the run is marked completed but before the email is recorded as sent, the summary is not sent; the run page still shows the packages. The next worker execution sends summaries for completed runs whose email status is empty and that ended less than a day ago.
 6. **When sending fails** (token revoked, domain removed, Cloudflare unavailable):
    - the run record gets `email: failed (<error class>)`; neither it nor the logs contain the address, the token or the body (NFR-P6);
    - the web app shows a banner "Email delivery is not working"; the run still counts as completed;
@@ -120,6 +122,7 @@ Out of scope: email *applications* (#32); other recipients; receiving mail; push
 - Negative: Email Sending is in beta; behaviour or pricing may change. The `Mailer` interface keeps the switch to Option 2 or 4 a small change.
 - Negative: on the free plan only verified addresses receive mail; a new notification address needs verification in Cloudflare. That matches a single-user MVP. Many recipients would need a paid plan or Option 4.
 - Negative: a few manual DNS and dashboard steps on the owner's Cloudflare account.
+- Negative: sending depends on the owner's personal Cloudflare account and domain, and a new notification address needs a manual verification step there (UC-02 A2). Acceptable for a single-user MVP; a product with other users would move to Option 4 on a dedicated domain.
 - Follow-ups:
   - **#22:** the onboarding steps in the runbook; the `email-sender` secret; `Mailer` with `CloudflareMailer` and `FakeMailer` and their tests.
   - **#30:** summary content (UC-09). **#27:** blocked-run alert (UC-08). **#33:** budget and failure alerts.
