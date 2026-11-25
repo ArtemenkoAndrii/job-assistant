@@ -8,13 +8,13 @@ AI assistant that finds vacancies on LinkedIn and Glassdoor, researches employer
 |---|---|
 | `docs/vision.md` | Product vision — scope, principles, constraints |
 | `docs/requirements/` | Use cases (UC-NN) and non-functional requirements (NFR-XN) |
-| `docs/architecture.md` | System context, containers, run worker components, open questions → ADRs |
+| `docs/architecture.md` | System context, containers, components, run sequence, deployment, decision log, open items |
 | `docs/adr/` | Architecture decisions — read the index before designing anything |
 | `docs/changes/<issue>-<slug>/` | intent.md, spec.md, plan.md per change ([how](docs/changes/README.md)) |
 | `docs/templates/` | Templates for intent, spec, plan |
 | `.claude/skills/` | Spec-writing process and policy skills (security, cost, mobile UX, resume rules) |
 | `.claude/agents/`, `.claude/hooks/` | `verifier` subagent; guard hooks (no push to `main`, no secrets) — see `.claude/settings.json` |
-| `apps/jobfinder/` | The application: `src/jobfinder/{domain,pipeline,browser,llm,storage,web,worker}`, `tests/`, `Dockerfile` ([ADR-0005](docs/adr/0005-application-stack.md)) |
+| `apps/jobfinder/` | The application: `src/jobfinder/{domain,pipeline,browser,llm,notify,storage,web,worker}`, `tests/`, `Dockerfile` ([ADR-0005](docs/adr/0005-application-stack.md)) |
 | `scripts/`, `tests/` | Build, lint, test and audit entry points; tests for the hooks |
 | `docs/spikes/`, `spikes/` | Feasibility findings and throwaway spike kits — not product code |
 | `.devcontainer/` | The only supported dev environment ([ADR-0002](docs/adr/0002-dev-environment.md)) |
