@@ -136,7 +136,7 @@ All job-search data lives in the two files of each profile (UC-03), as in the vi
 - **Alternative flows:**
   - A1. Nothing found or everything filtered out → the run completes with zero packages; the summary says so.
   - A2. A single vacancy or employer page fails (page did not load, unknown layout) → that vacancy is marked *failed* with the reason; the run continues.
-  - A3. Session expired, CAPTCHA, Cloudflare challenge or restriction notice → **blocked run**, UC-08.
+  - A3. Session expired, CAPTCHA, Cloudflare challenge or restriction notice on a job board → that board is skipped for the rest of the run (UC-08); the run is **blocked** only if every board is blocked or A-1 is unreachable ([ADR-0011](../adr/0011-browser-automation-policy.md) §6).
   - A4. One source blocked or unavailable (e.g. Glassdoor challenge) → continue with the other sources; the dossier marks what is missing.
   - A5. LLM cost cap reached → stop before the next LLM step; run status *stopped: budget*; the user is alerted.
   - A6. Kill switch turned on during the run → stop after the current step; status *stopped*.
@@ -147,7 +147,7 @@ All job-search data lives in the two files of each profile (UC-03), as in the vi
 - **Actors:** Job Finder, User.
 - **Main flow:**
   1. The browser shows a login page, authwall, CAPTCHA, challenge or restriction notice — or A-1 is unreachable.
-  2. Job Finder stops browsing immediately (no retries), keeps what it already processed, sets status *blocked: <reason>* and emails the user.
+  2. Job Finder stops browsing that board immediately (no retries) and keeps what it already processed. If every board is blocked or A-1 is unreachable, the run gets status *blocked: <reason>*; otherwise it completes and lists the skipped board. A login prompt or restriction notifies the user; a challenge is shown in the run and the summary ([ADR-0011](../adr/0011-browser-automation-policy.md) §6).
   3. The user fixes the cause (e.g. logs in again on A-1 manually) and clicks "Resume run" or waits for the next scheduled run.
 - **Alternative flows:**
   - A1. Restriction or "unusual activity" notice → also pause the schedule for that job board until the user re-enables it.
