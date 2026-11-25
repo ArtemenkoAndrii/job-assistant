@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-11-25 |
 | **Issue** | #17 |
 | **Deciders** | ArtemenkoAndrii (owner); drafted with Claude |

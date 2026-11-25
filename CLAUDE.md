@@ -46,6 +46,7 @@ CI runs all four on every PR, then builds the container image and smoke-tests it
 - ADR-0005 Application stack (Python 3.14, uv, FastAPI + Jinja2 + htmx, one image)
 - ADR-0006 Hosting (GCP `job-finder` project, us-central1, Cloud Run service + job, Scheduler)
 - ADR-0007 Data and file storage (Firestore + private Cloud Storage bucket, TTL retention, run lease)
+- ADR-0008 User authentication (IAP on Cloud Run, app verifies the IAP JWT and the owner email)
 
 A spec must not contradict an accepted ADR; if it has to, stop and propose a new ADR.
 
