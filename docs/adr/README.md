@@ -12,3 +12,4 @@ How we record decisions: [ADR-0001](0001-record-architecture-decisions.md). New 
 | [0006](0006-hosting.md) | Hosting | Accepted | 2026-11-24 |
 | [0007](0007-data-storage.md) | Data and file storage | Accepted | 2026-11-24 |
 | [0008](0008-user-authentication.md) | User authentication | Accepted | 2026-11-25 |
+| [0009](0009-infrastructure-as-code.md) | Infrastructure as code | Proposed | 2026-11-25 |
