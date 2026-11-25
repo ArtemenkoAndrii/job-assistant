@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-11-24 |
 | **Issue** | #18 |
 | **Deciders** | ArtemenkoAndrii (owner); drafted with Claude |
@@ -152,4 +152,3 @@ Out of scope: sign-in and the owner's account record (#17); infrastructure code 
   - #16: Terraform for the Firestore database, TTL policy, indexes, backup schedule, deny-all security rules, bucket with lifecycle rule and soft delete, IAM bindings; Firebase link.
   - #22: repositories for `settings`, `runs` and the lease; deploy; restore drill before release.
   - #17: where the owner's identity and session live.
-  - Update [architecture](../architecture.md) Q5 and §5 on acceptance.
