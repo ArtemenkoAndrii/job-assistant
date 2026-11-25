@@ -88,11 +88,11 @@ flowchart TB
 | **Run queue** | No separate service: `runs` documents with status `queued` plus the lease document `locks/worker` | Oldest queued run first; no duplicate queueing per profile; the kill switch drops queued runs (UC-14) |
 | **Firestore** | All structured data | TTL on `expire_at`; planned indexes; daily backups kept 7 days; deny-all client rules (ADR-0007) |
 | **Cloud Storage** | Uploads and generated PDFs | Private; `packages/pending/` deleted after 90 days, `packages/applied/` kept; soft delete 7 days |
-| **Secret Manager** | A-1 id and secret, OpenAI key, `email-sender`, owner email | Values added by the owner, never in the repo, CI or Terraform state; `worker` reads A-1 and email, `web` reads OpenAI and the owner email (ADR-0009) |
+| **Secret Manager** | A-1 id and secret, OpenAI key, `email-sender`, owner email | Values added by the owner, never in the repo, CI or Terraform state (ADR-0009); `worker` reads A-1, OpenAI and email sender; `web` reads OpenAI and the owner email (ADR-0006, ADR-0008, ADR-0010) |
 
 ## 3. Application components
 
-One Python package, `jobfinder`, with one folder per component ([ADR-0005](adr/0005-application-stack.md)):
+One Python package, `jobfinder` ([ADR-0005](adr/0005-application-stack.md)). The diagram shows logical components: most map to a folder (`web`, `pipeline`, `browser`, `llm`, `storage`, and `notify` from ADR-0010); agent tasks live in `pipeline`, the run guard in `pipeline` and `browser`; `domain` holds the shared models and `worker` the entry point.
 
 ```mermaid
 flowchart LR
@@ -184,8 +184,10 @@ The collections, indexes and retention rules are in [ADR-0007](adr/0007-data-sto
 | Settings (notification email, re-apply period, kill switch, paused boards) | email | until deleted |
 | Profiles with the two uploaded files and extracted fields | **resume** | until the profile is deleted (immediate) |
 | Runs, vacancies, cost ledger, counters | — | 12 months |
-| Dossiers, packages, resume PDFs not applied to | **resume content** | 90 days |
+| Dossiers (employer facts) | — | 90 days unless applied |
+| Packages and resume PDFs not applied to | **resume content** | 90 days |
 | Applied registry and its packages | links | until the owner deletes them |
+| Logs and agent step traces | no resume text | 30 days (NFR-P3, NFR-P6) |
 
 ## 6. Trust boundaries and cross-cutting concerns
 
@@ -194,7 +196,7 @@ The collections, indexes and retention rules are in [ADR-0007](adr/0007-data-sto
 | Access | IAP plus the app's own JWT and owner-email check; fail closed; dev-mode identity refused on Cloud Run | 0008, NFR-S1 |
 | Prompt injection | Readers (browsing agents) have only read tools and no personal data; writers (tailor, review) have no browser; typed outputs; URL provenance | 0011 §7, NFR-S6 |
 | Secrets | Secret Manager only; values added by the owner; each workload reads only its own | 0006, 0009, NFR-S2 |
-| Deployment boundary | Whoever deploys code acts as the app; only reviewed code on `main` deploys; CI cannot change IAM | 0003, 0009 |
+| Deployment boundary | Whoever deploys code acts as the app; only reviewed code on `main` deploys; CI has no project-level IAM rights (only invoker bindings on the service and the job) | 0003, 0009 |
 | Personal data | Minimal storage; TTL and explicit deletion; no resume in logs, traces or notifications | 0007, 0010, NFR-P1–P6 |
 | Cost | Hosting ≈ $0–0.20/month; LLM cap $10 with a budget guard; the LLM budget, not hosting, limits run frequency | 0004, 0006, NFR-C1–C5 |
 | Being a polite guest | Limits, pace, stop triggers and exit criteria in `BrowserGateway` | 0011, NFR-B1–B7 |
@@ -217,8 +219,9 @@ flowchart LR
   - `infra/app`: Cloud Run service and job, scheduler, indexes. Applied by CI on `main` through WIF.
 - **CI identities:**
   - `app-plan`: read-only, for PR plans.
-  - `deployer`: only `deploy.yml` on a push to `main`. No IAM, data or secret rights.
+  - `deployer`: only `deploy.yml` on a push to `main`. No project-level IAM, data or secret rights; resource IAM on the service and the job only.
 - **Outside Terraform** (manual steps, recorded in the runbook):
+  - creating the project, linking billing and adding Firebase (ADR-0009);
   - the email sender's Personal-mode project (ADR-0010);
   - the IAP OAuth client (ADR-0008);
   - secret values.
