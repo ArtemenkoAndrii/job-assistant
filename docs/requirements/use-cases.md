@@ -46,12 +46,12 @@
 
 - **Actor:** User. **Trigger:** opens the web app.
 - **Main flow:**
-  1. The user signs in with the chosen method (ADR #17).
+  1. The user signs in with their Google account through Identity-Aware Proxy ([ADR-0008](../adr/0008-user-authentication.md)).
   2. On first sign-in the system creates the user record and takes the sign-in email as the notification email.
   3. The user lands on the profiles page.
 - **Alternative flows:**
-  - A1. Sign-in fails or is cancelled → the user stays on the sign-in page with a message.
-  - A2. The account is not the allowed owner account (MVP is single-user) → access denied.
+  - A1. Sign-in fails or is cancelled → the user stays on Google's sign-in page.
+  - A2. The account is not the allowed owner account (MVP is single-user) → IAP shows "access denied"; if IAP were bypassed, the app answers 403.
 - **Result:** an authenticated session on desktop or mobile.
 
 ### UC-02 Manage settings
