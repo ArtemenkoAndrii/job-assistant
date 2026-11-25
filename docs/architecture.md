@@ -215,7 +215,7 @@ GCP project `job-finder`, `us-central1` ([ADR-0006](adr/0006-hosting.md)): Cloud
 | Q5 | Database and file storage; backups, retention, deletion | #18 → [ADR-0007](adr/0007-data-storage.md) | Firestore (Native) + private Cloud Storage bucket; TTL retention; daily backups; run lease in Firestore |
 | Q6 | Agent harness; **agent loop in the worker vs hosted MCP tool**; provider abstraction; model per step | #19 → [ADR-0004](adr/0004-agent-runtime.md) | Loop in the worker on Pydantic AI, gateway tools over one MCP session (§3) |
 | Q7 | Browser tool allowlist, limits, stop triggers, ban-risk exit criteria; `--shared-browser-context` on A-1 | #20 | Enforced in `BrowserGateway` |
-| Q8 | Email channel for summaries and alerts; SPF/DKIM | #21 | Transactional email API, free tier. Email *applications* are out of the MVP (#4) |
+| Q8 | Email channel for summaries and alerts; SPF/DKIM | #21 → [ADR-0010](adr/0010-email-delivery.md) | Gmail API with `gmail.send`, the owner's Gmail sending to the notification email; no domain needed. Email *applications* are out of the MVP (#4) |
 | Q9 | Run queue: managed queue or a DB lock | #15 → [ADR-0006](adr/0006-hosting.md), #18 | Queued runs and a lease in the database; "Run now" starts the job |
 | Q10 | PDF rendering of the tailored resume | #46 → [ADR-0005](adr/0005-application-stack.md) | WeasyPrint; checked against NFR-F4 |
 
