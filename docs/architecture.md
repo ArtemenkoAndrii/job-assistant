@@ -51,7 +51,7 @@ flowchart TB
         worker["<b>Run worker</b><br/>pipeline + runtime agents<br/>(job, up to 90 min)"]
         db[("<b>Database</b><br/>accounts, settings, profiles, runs,<br/>vacancies, dossiers, packages,<br/>applied registry, cost ledger")]
         files[("<b>File storage</b><br/>uploaded resume and requirements,<br/>generated resume PDFs")]
-        secrets[["<b>Secret manager</b><br/>A-1 token, LLM key,<br/>email key, session key"]]
+        secrets[["<b>Secret manager</b><br/>A-1 token, LLM key,<br/>email key, owner email"]]
     end
 
     a1["Browser MCP (A-1)"]
@@ -82,7 +82,7 @@ flowchart TB
 | **Run worker** | Executes UC-07 end to end for one run, then sends the summary (UC-09) | Long-running (30–90 min, NFR-R3) — rules out request-bound serverless functions with short timeouts; the **only** container that holds the A-1 token |
 | **Database** | All structured data; the cost ledger and counters that enforce limits | Small: one user, ≤ 3 profiles; backups daily, 7 days (NFR-A6); retention jobs (NFR-P3) |
 | **File storage** | Uploaded files and generated PDFs | Private; links in emails go to the web app, never to public objects |
-| **Secret manager** | A-1 service token (worker only), LLM API key (worker and web app), email credentials (worker), sign-in secrets such as a session signing key (web app) (NFR-S2) | Rotation every 90 days (NFR-S5) |
+| **Secret manager** | A-1 service token (worker only), LLM API key (worker and web app), email credentials (worker), the owner's email for the sign-in check (web app, [ADR-0008](adr/0008-user-authentication.md)) (NFR-S2) | Rotation every 90 days (NFR-S5) |
 
 Web app and worker are one codebase and one container image with two entry points ([ADR-0005](adr/0005-application-stack.md)).
 
@@ -211,7 +211,7 @@ GCP project `job-finder`, `us-central1` ([ADR-0006](adr/0006-hosting.md)): Cloud
 | Q1 | Language, framework, web UI approach, agent SDK; one codebase with web and worker entry points? | #46 → [ADR-0005](adr/0005-application-stack.md) | Python, FastAPI + Jinja2 + htmx, one image, two entry points |
 | Q2 | Which cloud services run the web app, the 30–90 min worker, the scheduler, within $5/month | #15 → [ADR-0006](adr/0006-hosting.md) | Cloud Run service + Cloud Run job + Cloud Scheduler, `us-central1`, own project |
 | Q3 | Terraform layout, state, environments, CI access | #16 | One environment for the MVP |
-| Q4 | Sign-in for one owner, working on phone and desktop | #17 | Managed identity provider, allow-list of one account; its secrets in the secret manager |
+| Q4 | Sign-in for one owner, working on phone and desktop | #17 → [ADR-0008](adr/0008-user-authentication.md) | IAP directly on Cloud Run; the app verifies the IAP JWT and the owner email |
 | Q5 | Database and file storage; backups, retention, deletion | #18 → [ADR-0007](adr/0007-data-storage.md) | Firestore (Native) + private Cloud Storage bucket; TTL retention; daily backups; run lease in Firestore |
 | Q6 | Agent harness; **agent loop in the worker vs hosted MCP tool**; provider abstraction; model per step | #19 → [ADR-0004](adr/0004-agent-runtime.md) | Loop in the worker on Pydantic AI, gateway tools over one MCP session (§3) |
 | Q7 | Browser tool allowlist, limits, stop triggers, ban-risk exit criteria; `--shared-browser-context` on A-1 | #20 | Enforced in `BrowserGateway` |
