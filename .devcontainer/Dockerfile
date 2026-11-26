@@ -54,6 +54,12 @@ ARG GITLEAKS_VERSION=8.21.2
 COPY install-gitleaks.sh /tmp/install-gitleaks.sh
 RUN GITLEAKS_VERSION=$GITLEAKS_VERSION bash /tmp/install-gitleaks.sh /usr/local/bin && rm /tmp/install-gitleaks.sh
 
+# Terraform for infra/ (ADR-0009): fmt and validate without waiting for CI. Keep equal to infra/.terraform-version
+# (scripts/check_infra.py fails if they differ). Needs registry.terraform.io at run time for `init`.
+ARG TERRAFORM_VERSION=1.17.2
+COPY install-terraform.sh /tmp/install-terraform.sh
+RUN TERRAFORM_VERSION=$TERRAFORM_VERSION bash /tmp/install-terraform.sh /usr/local/bin && rm /tmp/install-terraform.sh
+
 ENV DEVCONTAINER=true
 
 USER node

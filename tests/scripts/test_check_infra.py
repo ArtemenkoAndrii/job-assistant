@@ -53,6 +53,21 @@ class CheckInfra(unittest.TestCase):
         errors = self.run_check({".github/workflows/x.yaml": "on: pull_request_target\n"})
         self.assertEqual(len(errors), 1)
 
+    def test_terraform_version_mismatch_fails(self):
+        errors = self.run_check({
+            "infra/.terraform-version": "1.17.2\n",
+            ".devcontainer/Dockerfile": "ARG TERRAFORM_VERSION=1.9.8\n",
+        })
+        self.assertEqual(len(errors), 1)
+        self.assertIn("1.9.8", errors[0])
+
+    def test_terraform_version_match_passes(self):
+        errors = self.run_check({
+            "infra/.terraform-version": "1.17.2\n",
+            ".devcontainer/Dockerfile": "ARG TERRAFORM_VERSION=1.17.2\n",
+        })
+        self.assertEqual(errors, [])
+
 
 if __name__ == "__main__":
     unittest.main()
