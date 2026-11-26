@@ -1,6 +1,6 @@
 # Shared first step of deploy.yml, app-plan.yml and drift.yml (docs/changes/69-infra-ci-deploy/plan.md).
 # The platform layer is applied by the owner after the PR that adds these workflows is merged, so
-# until the repository variables exist there is nothing to deploy to:
+# until the Environment variables exist there is nothing to deploy to:
 #   - all variables empty: ready=false, a notice, exit 0 (the run is green and does nothing);
 #   - all set: ready=true;
 #   - some set, some empty: fail, naming the empty ones (a half-done bootstrap is a mistake).
@@ -55,7 +55,7 @@ runs:
           echo "::notice::bootstrap not done, see docs/runbooks/bootstrap.md"
           echo "ready=false" >> "$GITHUB_OUTPUT"
         elif [ "${#empty[@]}" -gt 0 ]; then
-          echo "::error::bootstrap is half done; these repository variables are empty: ${empty[*]} (docs/runbooks/bootstrap.md)"
+          echo "::error::bootstrap is half done; these Environment variables are empty: ${empty[*]} (docs/runbooks/bootstrap.md)"
           exit 1
         else
           echo "ready=true" >> "$GITHUB_OUTPUT"

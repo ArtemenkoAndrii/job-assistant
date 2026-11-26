@@ -1,5 +1,6 @@
 # Weekly check that the app layer matches Terraform (ADR-0009). Same read-only identity as app-plan;
-# fails on any difference. workflow_dispatch is kept so the check can be run by hand.
+# fails on any difference. workflow_dispatch is kept so the check can be run by hand. Its identifiers
+# are variables of the Environment `plan`, like app-plan.yml.
 name: drift
 
 on:
@@ -13,6 +14,7 @@ permissions:
 
 jobs:
   drift:
+    environment: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:

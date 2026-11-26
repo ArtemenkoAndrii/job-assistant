@@ -92,26 +92,36 @@ printf '%s' '<value>' | gcloud secrets versions add <secret-id> --data-file=- --
 
 Rotation (NFR-S5): add a new version, then destroy the old one, so the free six active versions are not exceeded.
 
-### 6. GitHub: Environment and variables
+### 6. GitHub: two Environments and their variables
 
-1. Repository *Settings → Environments → New environment* `production`. *Deployment branches and tags*: **Selected branches**, add `main` only. No secrets, no reviewers needed.
-2. Set these **repository variables** (non-secret identifiers; they are not variables of the Environment, so that pull requests can read them for `app-plan.yml`):
+Two Environments, both without secrets. They hold only non-secret identifiers (ADR-0009):
 
-| Variable | Value |
-|---|---|
-| `GCP_PROJECT_ID` | `job-finder-<suffix>` |
-| `GCP_PROJECT_NUMBER` | `terraform output project_number` |
-| `GCP_WIF_PROVIDER` | `terraform output wif_provider` |
-| `GCP_APP_PLAN_SA` | `terraform output app_plan_service_account` |
-| `GCP_DEPLOYER_SA` | `terraform output deployer_service_account` |
-| `GCP_STATE_BUCKET` | `terraform output state_bucket` |
-| `GCP_IMAGE_REPOSITORY` | `terraform output image_repository` |
+| Environment | Used by | Deployment branches |
+|---|---|---|
+| `production` | `deploy.yml` | **Selected branches: `main` only** |
+| `plan` | `app-plan.yml`, `drift.yml` | no restriction (pull requests from any branch must read it) |
+
+Create both under *Settings → Environments → New environment*; for `production` choose *Deployment branches and tags → Selected branches* and add `main`. No reviewers are needed.
+
+Variables of each Environment (same names, so the workflows read them the same way). Values come from `terraform output` in step 3:
+
+| Variable | Value | `production` | `plan` |
+|---|---|---|---|
+| `GCP_PROJECT_ID` | `job-finder-<suffix>` | yes | yes |
+| `GCP_PROJECT_NUMBER` | `terraform output project_number` | yes | yes |
+| `GCP_WIF_PROVIDER` | `terraform output wif_provider` | yes | yes |
+| `GCP_STATE_BUCKET` | `terraform output state_bucket` | yes | yes |
+| `GCP_IMAGE_REPOSITORY` | `terraform output image_repository` | yes | yes |
+| `GCP_DEPLOYER_SA` | `terraform output deployer_service_account` | **yes** | no |
+| `GCP_APP_PLAN_SA` | `terraform output app_plan_service_account` | no | **yes** |
+
+Each Environment holds exactly six variables; `plan` never gets the deployer account, `production` never the plan account.
 
 ```bash
-gh variable set GCP_PROJECT_ID --body "<value>"   # and the same for each of the others
+gh variable set GCP_PROJECT_ID --env production --body "<value>"   # repeat for each row; then the same with --env plan
 ```
 
-Set all seven in one sitting: with some set and some empty, the workflows fail on purpose.
+Set all six of an Environment in one sitting: with some set and some empty, the workflows that use it fail on purpose and name the empty ones. With all empty they end green with "bootstrap not done".
 
 ### 7. Check the guardrails (optional but recommended)
 

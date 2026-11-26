@@ -1,6 +1,8 @@
 # Read-only plan of the app layer on pull requests (ADR-0009). Runs as `app-plan`, which has no data,
 # secret, IAM-admin or platform-state access, and plans with -lock=false so it cannot write the state.
 # Pull requests from forks get no OIDC token and are skipped.
+# Its identifiers are variables of the Environment `plan` (no branch rule, no secrets), so pull
+# requests from any branch can read them; `production` is limited to main and is used by deploy.yml.
 name: app-plan
 
 on:
@@ -22,6 +24,7 @@ concurrency:
 jobs:
   plan:
     if: github.event.pull_request.head.repo.full_name == github.repository
+    environment: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
