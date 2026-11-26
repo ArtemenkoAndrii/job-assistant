@@ -30,7 +30,7 @@ The architecture and ADR-0006 to ADR-0009 describe where the product runs and ho
 - Accepted ADRs: 0005 (one image), 0006 (hosting), 0007 (storage resources), 0008 (IAP), 0009 (two Terraform layers, WIF, runbook).
 - NFR-A1 (cold start), NFR-C1 (hosting ≤ $5/month with budget alerts), NFR-S2 to NFR-S4 (secrets, HTTPS, least privilege), NFR-M3 (infrastructure as code).
 - The repo is public: no secrets, project number or owner email in the diff.
-- PR checks (`ci.yml`) never touch the cloud, A-1 or job boards; Terraform is validated there without a backend. Only `app-plan.yml` (read-only) and `deploy.yml` (on `main`) reach GCP, through WIF.
+- PR checks (`ci.yml`) never touch the cloud, A-1 or job boards; Terraform is validated there without a backend. Only `app-plan.yml` and `drift.yml` (read-only identity) and `deploy.yml` (on `main`) reach GCP, through WIF.
 
 ## Out of scope
 
