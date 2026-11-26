@@ -20,8 +20,9 @@ Nothing deploys yet. The ADRs (0005–0009) are unproven until a build reaches C
 | `.devcontainer/Dockerfile` | install Terraform at build time (pinned) |
 | `.devcontainer/allowed-domains.txt` | + `registry.terraform.io`, `releases.hashicorp.com` with a comment why (R8) |
 | `infra/.terraform-version` | new, pinned version |
-| `infra/platform/*.tf` | new: `versions.tf`, `variables.tf`, `apis.tf`, `state.tf`, `wif.tf`, `iam.tf`, `firestore.tf`, `storage.tf`, `secrets.tf`, `registry.tf`, `logging.tf`, `budget.tf`, `firebase.tf`, `outputs.tf`, `terraform.tfvars.example`, `.terraform.lock.hcl` |
-| `infra/app/*.tf` | new: `versions.tf` (empty GCS backend, bucket via `-backend-config`), `variables.tf`, `cloud_run_web.tf` (IAP on, invoker for IAP agent, startup probe), `cloud_run_worker.tf`, `scheduler.tf`, `outputs.tf`, `.terraform.lock.hcl` |
+| `infra/platform/*.tf` | new: `versions.tf`, `variables.tf`, `apis.tf`, `state.tf`, `wif.tf`, `iam.tf`, `firestore.tf`, `storage.tf`, `secrets.tf`, `registry.tf`, `logging.tf`, `budget.tf`, `firebase.tf`, `outputs.tf`, `terraform.tfvars.example`, `.terraform.lock.hcl` (generated for `linux_amd64` and `linux_arm64`, with `terraform providers lock`) |
+| `infra/app/*.tf` | new: `versions.tf` (empty GCS backend, bucket via `-backend-config`), `variables.tf`, `cloud_run_web.tf` (IAP on, invoker for IAP agent, startup probe), `cloud_run_worker.tf`, `scheduler.tf`, `outputs.tf`, `.terraform.lock.hcl` (both platforms) |
+| `.github/actions/bootstrap-guard/action.yml` | new: composite action, the shared guard step of `deploy.yml`, `app-plan.yml` and `drift.yml` |
 | `.github/workflows/ci.yml` | add Terraform install, `terraform fmt -check -recursive infra`, `init -backend=false` + `validate` per layer |
 | `.github/workflows/app-plan.yml` | new: PR, `app-plan` via WIF, `plan -lock=false` |
 | `.github/workflows/deploy.yml` | new: push to `main`, bootstrap guard, build/push, apply with digest, wait Ready |
@@ -32,7 +33,6 @@ Nothing deploys yet. The ADRs (0005–0009) are unproven until a build reaches C
 | `tests/scripts/test_check_infra.py` | new: AC10 cases (bad and good fixtures built in a temp dir) |
 | `docs/runbooks/bootstrap.md` | new (R5) |
 | `CLAUDE.md`, `docs/dev-environment.md`, `docs/architecture.md` | table row for `infra/` and `docs/runbooks/`, Terraform in the dev container, deployment section points to the runbook; ADR index unchanged |
-| `docs/adr/0008-user-authentication.md` | header note row — already committed |
 
 Not touched: `apps/jobfinder/**`, Dockerfile of the app.
 
@@ -42,21 +42,22 @@ Each step is a commit; run `scripts/build.sh`, `scripts/lint.sh`, `scripts/test.
 1. **Save plan.md** (this plan). Commit.
 2. **Tooling:** `install-terraform.sh`, Dockerfile, allowed domains, `infra/.terraform-version`; `check_infra.py` + tests + lint/test wiring (test first: failing fixture, then the check). Commit.
 3. **`infra/platform`**, in this order, each file small:
-   - `variables.tf`: `project_id`, `project_number`, `region` (default `us-central1`), `billing_account` (sensitive), `owner_email` (sensitive), `github_repository_id` and `github_owner_id` (defaults are the numeric IDs already public in ADR-0009), `state_bucket`, `files_bucket`, `budget_amount` (5). Real values go in a gitignored `terraform.tfvars` in Cloud Shell; `terraform.tfvars.example` has placeholders only.
-   - `apis.tf` (run, cloudscheduler, firestore, secretmanager, artifactregistry, iam, iamcredentials, sts, iap, firebase, billingbudgets, storage, logging); `state.tf` (versioned, private bucket, `prevent_destroy`); `wif.tf` (pool `github`, provider `github-actions`, attribute condition on numeric IDs, mapped `event_name`, `ref`, `workflow_ref`).
+   - `variables.tf`: `project_id`, `region` (default `us-central1`), `billing_account` (sensitive), `owner_email` (sensitive), `github_repository_id` and `github_owner_id` (defaults are the numeric IDs already public in ADR-0009), `state_bucket`, `files_bucket`, `budget_amount` (5). Real values go in a gitignored `terraform.tfvars` in Cloud Shell; `terraform.tfvars.example` has placeholders only.
+   - `apis.tf` (cloudresourcemanager, serviceusage, firebaserules, run, cloudscheduler, firestore, secretmanager, artifactregistry, iam, iamcredentials, sts, iap, firebase, billingbudgets, storage, logging); `state.tf` (versioned, private bucket, `prevent_destroy`); `wif.tf` (pool `github`, provider `github-actions`, attribute condition on numeric IDs, mapped `event_name`, `ref`, `workflow_ref`).
    - `iam.tf`: service accounts `web`, `worker`, `scheduler`, `app-plan`, `deployer`; every role of ADR-0006/0009 (custom roles for `storage.objects.list` and for the two `setIamPolicy` permissions); principal bindings: `app-plan` ← any run of the repo; `deployer` ← `workflow_ref` of `deploy.yml@refs/heads/main` and `event_name == 'push'`; owner `iap.httpsResourceAccessor` at project level; IAM conditions for state-bucket prefixes.
-   - `firestore.tf` (Native, `us-central1`, TTL on `expire_at` for the TTL collections, daily backup schedule with 7-day retention, rules file denying all client access); `storage.tf` (uniform access, public access prevention, soft delete 7 days, lifecycle `packages/pending/` age 90); `secrets.tf` (5 secrets as containers + accessor bindings per ADR-0006 identities, **no `google_secret_manager_secret_version`**); `registry.tf` (cleanup keep last 3); `logging.tf` (30-day `_Default` retention); `budget.tf` ($5, thresholds 0.5/0.9/1.0, email to the owner); `firebase.tf`; `outputs.tf` (non-secret identifiers the owner pastes into the GitHub Environment).
+   - `firestore.tf` (Native, `us-central1`, TTL on `expire_at` for the TTL collections, daily backup schedule with 7-day retention, rules file denying all client access); `storage.tf` (uniform access, public access prevention, soft delete 7 days, lifecycle `packages/pending/` age 90); `secrets.tf` (5 secrets as containers + accessor bindings per ADR-0006 identities, **no `google_secret_manager_secret_version`**); `registry.tf` (cleanup keep last 3); `logging.tf` (30-day `_Default` retention); `budget.tf` ($5, thresholds 0.5/0.9/1.0, email to the owner); `firebase.tf`; `outputs.tf` (non-secret identifiers the owner pastes into the GitHub Environment). The project number comes from `data "google_project"`, not a variable. The IAP service agent is created explicitly with `google_project_service_identity` (provider `google-beta`), so it exists before the app layer grants it `run.invoker`. `versions.tf` has the `gcs` backend block with no bucket; the bootstrap applies with `terraform init -backend=false` (local state), then `terraform init -migrate-state -backend-config=bucket=<state-bucket>` moves it (runbook). `app-plan` and `deployer` get no role on the `platform/` prefix (it holds the owner email and the billing account); the IAM conditions are on `app/` only (AC13 checks it).
    - Validate with `terraform init -backend=false && terraform validate`, `fmt`. Commit.
-4. **`infra/app`**: web service `jobfinder-web` (`iap_enabled`, `ingress` all, min 0/max 2, 1 vCPU/512 MiB, `startup_cpu_boost`, startup probe `GET /healthz`, env `PORT` default, runs as `web`), `google_cloud_run_v2_service_iam_member` `run.invoker` for the IAP service agent only; job `jobfinder-worker` (1 task, parallelism 1, timeout `7200s`, `max_retries = 0`, 1 vCPU/1 GiB, `python -m jobfinder.worker`, runs as `worker`); Scheduler `30 * * * *` calling the job `:run` as `scheduler`; invoker bindings on the job for `web` and `scheduler`; image variable is a full digest reference (validated by a `validation` block, so a tag is rejected). No composite indexes (comment says why). Commit.
+4. **`infra/app`**: web service `jobfinder-web` (`iap_enabled`, `ingress` all, min 0/max 2, 1 vCPU/512 MiB, `startup_cpu_boost`, startup probe `GET /healthz`, env `PORT` default, runs as `web`), `google_cloud_run_v2_service_iam_member` `run.invoker` for the IAP service agent only; job `jobfinder-worker` (1 task, parallelism 1, timeout `7200s`, `max_retries = 0`, 1 vCPU/1 GiB, `python -m jobfinder.worker`, runs as `worker`); Scheduler `30 * * * *` calling the job `:run` as `scheduler`; invoker bindings on the job for `web` and `scheduler`; the IAP agent's address is built from the project number, which the app layer takes from the Environment variable (`app-plan` has no `resourcemanager.projects.get`); image variable is a full digest reference (validated by a `validation` block, so a tag is rejected). No composite indexes (comment says why). Commit.
 5. **Workflows** (actions pinned by commit SHA resolved with `gh api`, permissions minimal, `persist-credentials: false`):
+   - `bootstrap-guard` composite action (used first in `deploy.yml`, `app-plan.yml`, `drift.yml`): all Environment variables empty → output `ready=false` and `::notice::bootstrap not done, see runbook`, exit 0; all set → `ready=true`; some set and some empty → fail with the names of the empty ones. Later steps run only `if: steps.guard.outputs.ready == 'true'`.
    - `ci.yml`: no cloud access.
-   - `app-plan.yml`: `permissions: id-token: write, contents: read, pull-requests: read`; `google-github-actions/auth` with the Environment variables; `terraform init -backend-config=bucket=...`, `plan -lock=false -input=false`. Skipped on fork PRs by design (no token).
-   - `deploy.yml`: `on: push` to `main`, paths `infra/app/**`, `apps/**`; `environment: production`; step 1 `guard` reads the variables and exits 0 with `::notice::bootstrap not done, see runbook` and `ready=false` if any is empty; later steps `if: steps.guard.outputs.ready == 'true'`: auth, `docker build/push` to Artifact Registry, resolve digest (`docker inspect` RepoDigests), `terraform apply -auto-approve -var image=<digest>`, `gcloud run services describe` loop until `Ready=True` on the latest revision (timeout 5 min). No `/healthz` call.
-   - `drift.yml`: `schedule: weekly` (+ no `workflow_dispatch`), plan with `-detailed-exitcode`, exit 2 → fail.
+   - `app-plan.yml`: `permissions: id-token: write, contents: read, pull-requests: read`; `google-github-actions/auth` with the Environment variables; `terraform init -backend-config=bucket=...`, `plan -lock=false -input=false -var image=<deployed digest>`. The digest is read with `gcloud run services describe jobfinder-web` (resolved to `repo@sha256:…`), so the plan shows no image diff and passes validation; if the service does not exist yet, a fixed all-zero digest is used. Skipped on fork PRs by design (no token).
+   - `deploy.yml`: `on: push` to `main`, paths `infra/app/**`, `apps/**`; `environment: production`; `concurrency: { group: deploy, cancel-in-progress: false }`; step 1 is the guard; later steps: auth, `docker build/push` to Artifact Registry, resolve digest (`docker inspect` RepoDigests), `terraform apply -auto-approve -var image=<digest>`, `gcloud run services describe` loop until `Ready=True` on the latest revision (timeout 5 min). No `/healthz` call.
+   - `drift.yml`: `schedule: weekly` and `workflow_dispatch` (AC4 needs a manual run), guard step, same deployed-digest `-var image=` as `app-plan.yml`, plan with `-detailed-exitcode`, exit 2 → fail.
    Commit.
-6. **Runbook + docs** (R5): numbered owner steps, each with the exact command; ordering note that the IAP client exists before the re-run; last step "Re-run latest `deploy.yml`"; monthly platform plan; rollback by digest; a "what each secret value is and when to add it" table. Update the docs listed above; check Markdown links with `scripts/lint.sh`. Commit.
-7. **Verifier:** run the `verifier` subagent with `#69`, quote PASS in the PR; push the branch and open the PR `Closes #69` (owner reviews; squash-merge).
-8. **After merge, owner bootstraps** (I assist, cannot touch GCP: the sandbox has no credentials). Merge triggers `deploy.yml` → green "bootstrap not done" (AC17). Owner follows the runbook; re-run (AC18). Measurements (cold start, image size, AC15/19) are pasted into Proof in a short follow-up PR; the issue closes when they are recorded.
+6. **Runbook + docs** (R5): numbered owner steps, each with the exact command; ordering note that the IAP client exists before the re-run; last step "Re-run latest `deploy.yml`"; monthly platform plan; rollback by digest; the GitHub Environment `production` is limited to deployment branches = `main` only; the custom OAuth client is attached with `gcloud iap settings set` at project level (the client secret never goes to state or the repo); a "what each secret value is and when to add it" table. Update the docs listed above; check Markdown links with `scripts/lint.sh`. Commit.
+7. **Verifier and PR:** run the `verifier` subagent with `#69`. It checks the acceptance criteria that can be proved before merge and lists the post-bootstrap ones (AC3, AC4, AC5, AC8, AC9, AC11, AC12, AC13, AC15 to AC19) as pending; quote its verdict in the PR. The agent's token has no Workflows permission, so the agent only commits; **the owner pushes the branch from the host** and opens the PR, which says `Refs #69` (not `Closes`). The agent does not ask for wider token rights. The owner reviews and squash-merges.
+8. **After merge, owner bootstraps** (I assist, cannot touch GCP: the sandbox has no credentials). Merge triggers `deploy.yml` → green "bootstrap not done" (AC17). Owner follows the runbook; re-run (AC18). Measurements (cold start, image size, AC15/19) and the other post-bootstrap evidence are pasted into Proof in a follow-up PR with `Closes #69`; the issue closes when they are recorded.
 
 ## Risks
 
@@ -69,6 +70,8 @@ Each step is a commit; run `scripts/build.sh`, `scripts/lint.sh`, `scripts/test.
 | App-layer apply by `deployer` also needs read access to the state of platform outputs | Not used: the app layer takes identifiers as variables, never reads the platform state |
 | `app-plan` with `-lock=false` and read-only roles cannot refresh some resources | Confirm on the first PR run (ADR-0009 follow-up); adjust the viewer roles in the platform layer if needed |
 | Cold start above 10 s on 512 MiB | Measure first; raise memory/CPU or trim the image (NFR-A1) and record the change |
+| The `google_billing_budget` resource may need `user_project_override = true` and `billing_project` on the provider when applied with the owner's user credentials in Cloud Shell | Set both in the platform provider block; confirm on the first apply, record in the Divergence log |
+| The app layer cannot derive the project number with `data "google_project"` (`app-plan` lacks `resourcemanager.projects.get`) | Keep it an Environment variable in the app layer; adding the permission to both CI roles would be a platform change and an ADR-0009 deviation |
 | Leaking identifiers (project number, billing account, owner email) into the public repo | `terraform.tfvars` is gitignored; examples hold placeholders; gitleaks and review; project number lives only in Environment variables |
 
 ## Proof
@@ -88,7 +91,7 @@ Commands pasted into the PR: `scripts/build.sh`, `scripts/lint.sh`, `scripts/tes
 | AC10 | `tests/scripts/test_check_infra.py` |
 | AC11 | owner's `terraform plan` in Cloud Shell "No changes" + console check list |
 | AC12 | `gcloud secrets versions list` per secret: empty |
-| AC13 | `gcloud projects get-iam-policy` filtered by the two accounts |
+| AC13 | `gcloud projects get-iam-policy` filtered by the two accounts, plus the bucket IAM policy: neither account has any role on the `platform/` prefix |
 | AC14 | runbook order reviewed in the PR |
 | AC15 | Cloud Run `container/startup_latencies` and request log latency after 15 min idle; **value recorded here**: _to fill_; image size from `docker images` / Artifact Registry: _to fill_ |
 | AC16 | `gcloud run jobs execute jobfinder-worker --wait`, exit 0 |
@@ -98,4 +101,17 @@ Commands pasted into the PR: `scripts/build.sh`, `scripts/lint.sh`, `scripts/tes
 
 ## Divergence log
 
-_Filled during implementation._
+**Pre-implementation review (2026-11-26)**, by the owner; Status stays Approved:
+
+- The main PR says `Refs #69`; a follow-up PR with the post-bootstrap Proof says `Closes #69`; the verifier lists the post-bootstrap ACs as pending.
+- `app-plan.yml` and `drift.yml` pass the deployed digest as `-var image=`.
+- Shared bootstrap guard: all variables empty → green notice; partly set → fail.
+- Platform state: bootstrap with `-backend=false`, then `-migrate-state`; `app-plan` and `deployer` cannot read the `platform/` prefix.
+- IAP: runbook binds the OAuth client at project level; the IAP service agent is created explicitly in the platform layer.
+- The owner pushes the branch from the host; the agent token is not widened.
+- Added APIs `cloudresourcemanager`, `serviceusage`, `firebaserules`; budget provider risk added.
+- `deploy.yml` concurrency group; `drift.yml` keeps `workflow_dispatch`; runbook limits the Environment to `main`.
+- Project number from `data "google_project"` in the platform layer (the app layer keeps the variable, see Risks); lock files for `linux_amd64` and `linux_arm64`.
+- The ADR-0008 header note was dropped from the file list (reverted on the owner's request).
+
+_Implementation entries follow._
