@@ -226,6 +226,8 @@ flowchart LR
   - the IAP OAuth client (ADR-0008);
   - secret values.
 
+The steps, in order, are in [docs/runbooks/bootstrap.md](runbooks/bootstrap.md). The repository variables that `app-plan.yml`, `drift.yml` and `deploy.yml` read are listed there; until they are set, the workflows end green with "bootstrap not done".
+
 ## 8. Decision log
 
 | Question | Decision | ADR |

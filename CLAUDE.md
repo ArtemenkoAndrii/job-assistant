@@ -15,6 +15,7 @@ AI assistant that finds vacancies on LinkedIn and Glassdoor, researches employer
 | `.claude/skills/` | Spec-writing process and policy skills (security, cost, mobile UX, resume rules) |
 | `.claude/agents/`, `.claude/hooks/` | `verifier` subagent; guard hooks (no push to `main`, no secrets) — see `.claude/settings.json` |
 | `apps/jobfinder/` | The application: `src/jobfinder/{domain,pipeline,browser,llm,notify,storage,web,worker}`, `tests/`, `Dockerfile` ([ADR-0005](docs/adr/0005-application-stack.md)) |
+| `infra/`, `docs/runbooks/` | Terraform layers `platform` (owner) and `app` (CI), and the owner's bootstrap runbook ([ADR-0009](docs/adr/0009-infrastructure-as-code.md)) |
 | `scripts/`, `tests/` | Build, lint, test and audit entry points; tests for the hooks |
 | `docs/spikes/`, `spikes/` | Feasibility findings and throwaway spike kits — not product code |
 | `.devcontainer/` | The only supported dev environment ([ADR-0002](docs/adr/0002-dev-environment.md)) |
@@ -24,8 +25,8 @@ AI assistant that finds vacancies on LinkedIn and Glassdoor, researches employer
 | Command | What |
 |---|---|
 | `scripts/build.sh` | `uv sync --locked` and `uv build` for `apps/jobfinder` |
-| `scripts/lint.sh` | shellcheck, JSON, Markdown links, A-1 references, no Proposed ADRs, Ruff, Pyright, gitleaks (offline) |
-| `scripts/test.sh` | Hook tests and `pytest` (no network: fake models and fake MCP only) |
+| `scripts/lint.sh` | shellcheck, JSON, Markdown links, A-1 references, no Proposed ADRs, infra rules (no `pull_request_target`, no `allUsers`, Terraform pin), `terraform fmt`, Ruff, Pyright, gitleaks (offline) |
+| `scripts/test.sh` | Hook tests, script tests and `pytest` (no network: fake models and fake MCP only) |
 | `scripts/audit.sh` | pip-audit of locked dependencies (needs network; CI step) |
 
 CI runs all four on every PR, then builds the container image and smoke-tests it (`.github/workflows/ci.yml`). Each command exits non-zero on failure. Add dependencies with `uv add` inside `apps/jobfinder`; commit `uv.lock`.

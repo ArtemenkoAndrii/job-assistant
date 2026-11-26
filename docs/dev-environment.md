@@ -66,7 +66,7 @@ Run the checks locally: `scripts/lint.sh` and `scripts/test.sh`.
 
 ## What is not in the container, on purpose
 
-- **Cloud credentials** (gcloud, Terraform): cloud changes go through CI.
+- **Cloud credentials** (gcloud): cloud changes go through CI, or the owner applies `infra/platform` in Cloud Shell. Terraform itself is installed (pinned in `infra/.terraform-version`, SHA256 in `infra/.terraform-sha256`) for `terraform fmt`, `init -backend=false` and `validate`; it needs `registry.terraform.io` and `releases.hashicorp.com`, which are in the allowlist. Terraform providers talk to Terraform over a Unix socket that the Claude Code sandbox blocks, so `terraform validate` needs `terraform` in the sandbox's excluded commands (`/sandbox exclude terraform`); only a plain `terraform …` command is excluded, not `a && terraform …`.
 - **The Browser MCP endpoint (A-1)**: not in the network allowlist. Spike kits that need A-1 run outside the container.
 - **Windows files**: nothing from the host is mounted except the workspace.
 
