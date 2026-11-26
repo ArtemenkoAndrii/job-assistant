@@ -6,6 +6,7 @@
 | **Date** | 2026-11-25 |
 | **Issue** | #17 |
 | **Deciders** | ArtemenkoAndrii (owner); drafted with Claude |
+| **Note** | Where the owner email is stored is defined by [ADR-0009](0009-infrastructure-as-code.md) |
 
 ## Context
 
