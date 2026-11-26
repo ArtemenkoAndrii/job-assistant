@@ -54,11 +54,18 @@ ARG GITLEAKS_VERSION=8.21.2
 COPY install-gitleaks.sh /tmp/install-gitleaks.sh
 RUN GITLEAKS_VERSION=$GITLEAKS_VERSION bash /tmp/install-gitleaks.sh /usr/local/bin && rm /tmp/install-gitleaks.sh
 
-# Terraform for infra/ (ADR-0009): fmt and validate without waiting for CI. Keep equal to infra/.terraform-version
-# (scripts/check_infra.py fails if they differ). Needs registry.terraform.io at run time for `init`.
+# Terraform for infra/ (ADR-0009): fmt and validate without waiting for CI. The version and the SHA256 of the
+# zips mirror infra/.terraform-version and infra/.terraform-sha256 (the build context cannot reach infra/);
+# scripts/check_infra.py fails if they differ. Needs registry.terraform.io at run time for `init`.
 ARG TERRAFORM_VERSION=1.17.2
+ARG TERRAFORM_SHA256_AMD64=REPLACE_WITH_SHA256_FROM_RELEASE_PAGE
+ARG TERRAFORM_SHA256_ARM64=REPLACE_WITH_SHA256_FROM_RELEASE_PAGE
 COPY install-terraform.sh /tmp/install-terraform.sh
-RUN TERRAFORM_VERSION=$TERRAFORM_VERSION bash /tmp/install-terraform.sh /usr/local/bin && rm /tmp/install-terraform.sh
+RUN printf '%s  terraform_%s_linux_amd64.zip\n%s  terraform_%s_linux_arm64.zip\n' \
+      "$TERRAFORM_SHA256_AMD64" "$TERRAFORM_VERSION" "$TERRAFORM_SHA256_ARM64" "$TERRAFORM_VERSION" > /tmp/terraform-sha256 \
+  && TERRAFORM_VERSION=$TERRAFORM_VERSION TERRAFORM_SHA256_FILE=/tmp/terraform-sha256 \
+      bash /tmp/install-terraform.sh /usr/local/bin \
+  && rm /tmp/install-terraform.sh /tmp/terraform-sha256
 
 ENV DEVCONTAINER=true
 

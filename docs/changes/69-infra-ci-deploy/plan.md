@@ -114,4 +114,8 @@ Commands pasted into the PR: `scripts/build.sh`, `scripts/lint.sh`, `scripts/tes
 - Project number from `data "google_project"` in the platform layer (the app layer keeps the variable, see Risks); lock files for `linux_amd64` and `linux_arm64`.
 - The ADR-0008 header note was dropped from the file list (reverted on the owner's request).
 
-_Implementation entries follow._
+**Implementation**
+
+- Step 2: `scripts/check_infra.py` also checks the Terraform pin: the Dockerfile `TERRAFORM_VERSION` must equal `infra/.terraform-version`. Terraform is pinned to 1.17.2 (newest stable, by numeric sort).
+- Step 2, owner review: `install-terraform.sh` verifies the zip against SHA256 values pinned in the repo, `infra/.terraform-sha256` (`sha256sum` format, `linux_amd64` and `linux_arm64`), not against a checksum file from the release host. The Dockerfile build context is `.devcontainer/`, so it mirrors the hashes as build ARGs and `check_infra.py` fails if they differ from the file. **The hashes are placeholders** (`REPLACE_WITH_SHA256_FROM_RELEASE_PAGE`): the sandbox could not reach `releases.hashicorp.com` (proxy 502). The owner fills them from the official release page, in `infra/.terraform-sha256` and in the two Dockerfile ARGs. Until then `check_infra.py` warns locally and fails when `CI` is set, and `install-terraform.sh` refuses to install, so the dev container build fails too.
+- Step 2, owner review: no separate Claude Code sandbox allowlist exists in the repo (`.claude/settings.json` has no `sandbox.network`; `.devcontainer/claude-settings.json` only enables the sandbox). The sandbox allows network per command with approval (`allowed_domains`), so `registry.terraform.io` and `releases.hashicorp.com` need no settings change; the dev container firewall allowlist (`allowed-domains.txt`) is the only guardrail change, to be explained in the PR.
