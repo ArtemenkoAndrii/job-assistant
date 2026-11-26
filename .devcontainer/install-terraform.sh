@@ -15,13 +15,17 @@ BIN_DIR="${1:?usage: install-terraform.sh <bin-dir>}"
 case "$(uname -m)" in
   x86_64) ARCH=amd64 ;;
   aarch64 | arm64) ARCH=arm64 ;;
-  *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+  *) echo "install-terraform: unsupported architecture $(uname -m); only x86_64 and aarch64 have pinned hashes" >&2; exit 1 ;;
 esac
 
 ZIP="terraform_${VERSION}_linux_${ARCH}.zip"
 EXPECTED="$(awk -v z="$ZIP" '$2 == z { print $1 }' "$SUMS")"
+if [ -z "$EXPECTED" ]; then
+  echo "install-terraform: $SUMS has no hash for $ZIP (version $VERSION, $ARCH); add it from the official release page" >&2
+  exit 1
+fi
 if ! [[ "$EXPECTED" =~ ^[0-9a-f]{64}$ ]]; then
-  echo "no pinned SHA256 for $ZIP in $SUMS (found: '${EXPECTED:-nothing}'); fill it from the official release page" >&2
+  echo "install-terraform: the pinned hash for $ZIP is not a SHA256 (found '$EXPECTED'); it may still be a placeholder, fill it from the official release page" >&2
   exit 1
 fi
 
