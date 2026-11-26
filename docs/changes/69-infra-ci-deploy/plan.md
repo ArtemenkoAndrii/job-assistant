@@ -136,3 +136,9 @@ Commands pasted into the PR: `scripts/build.sh`, `scripts/lint.sh`, `scripts/tes
 - The bootstrap guard masks the project ID, project number and state bucket (`::add-mask::`) before anything else; logs of a public repository are public.
 - `app-plan.yml` and `drift.yml` use the all-zero digest only when `gcloud` reports the service as not found (`NOT_FOUND` or "Cannot find service"); any other error fails the step, as does a deployed image without a digest. Tested with a fake `gcloud` (found, not found, permission denied, tag).
 - The PR body is kept in `pr-69.md` in the repo root, untracked (not committed).
+
+**First platform apply (2026-11-26)**, found by the owner in Cloud Shell:
+
+- GCP account IDs must be 6-30 characters, so `web` failed; the web app's account is now `web-app` (the role keeps the name `web` in the ADRs and in Terraform keys).
+- Cloud Shell has no Terraform: the runbook installs the pinned version with `install-terraform.sh`.
+- `init -backend=false` does not allow plan/apply with a `backend "gcs"` block: the runbook uses a git-ignored `backend_override.tf` (local backend) for the first apply, removed before `-migrate-state`.

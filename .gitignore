@@ -33,3 +33,4 @@ coverage/
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+*_override.tf
