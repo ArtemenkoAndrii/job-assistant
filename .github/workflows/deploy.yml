@@ -1,0 +1,107 @@
+# Builds the image and applies the app layer on every push to main that changes the app or infra/app
+# (ADR-0009). Runs as `deployer`; WIF accepts that account only for this file, on main, on a push
+# event. The service is behind IAP, so the workflow makes no network call to /healthz: it waits until
+# the new revision is Ready, which Cloud Run only reports after the startup probe on /healthz passes.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/app/**"
+      - "apps/**"
+      - ".github/workflows/deploy.yml"
+      - ".github/actions/bootstrap-guard/**"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # The Environment limits deployments to the main branch (docs/runbooks/bootstrap.md).
+    environment: production
+    env:
+      REGION: us-central1
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - id: guard
+        uses: ./.github/actions/bootstrap-guard
+        with:
+          project-id: ${{ vars.GCP_PROJECT_ID }}
+          project-number: ${{ vars.GCP_PROJECT_NUMBER }}
+          wif-provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service-account: ${{ vars.GCP_DEPLOYER_SA }}
+          state-bucket: ${{ vars.GCP_STATE_BUCKET }}
+          image-repository: ${{ vars.GCP_IMAGE_REPOSITORY }}
+
+      - if: steps.guard.outputs.ready == 'true'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+
+      - if: steps.guard.outputs.ready == 'true'
+        name: Install Terraform
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          .devcontainer/install-terraform.sh "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - if: steps.guard.outputs.ready == 'true'
+        name: Build and push the image
+        id: image
+        env:
+          IMAGE_REPOSITORY: ${{ vars.GCP_IMAGE_REPOSITORY }}
+        run: |
+          gcloud auth configure-docker "${IMAGE_REPOSITORY%%/*}" --quiet
+          tag="${IMAGE_REPOSITORY}/jobfinder:${GITHUB_SHA}"
+          docker build --tag "$tag" apps/jobfinder
+          docker push "$tag"
+          digest_ref="$(docker inspect --format='{{index .RepoDigests 0}}' "$tag")"
+          if ! [[ "$digest_ref" =~ @sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::could not read the pushed image digest ($digest_ref)"
+            exit 1
+          fi
+          echo "image=$digest_ref" >> "$GITHUB_OUTPUT"
+
+      - if: steps.guard.outputs.ready == 'true'
+        name: Terraform apply
+        working-directory: infra/app
+        env:
+          TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+          TF_VAR_project_number: ${{ vars.GCP_PROJECT_NUMBER }}
+          TF_VAR_image: ${{ steps.image.outputs.image }}
+          STATE_BUCKET: ${{ vars.GCP_STATE_BUCKET }}
+        run: |
+          terraform init -input=false -backend-config="bucket=${STATE_BUCKET}"
+          terraform apply -input=false -auto-approve -no-color
+
+      - if: steps.guard.outputs.ready == 'true'
+        name: Wait until the new revision is Ready
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+        run: |
+          for i in $(seq 1 30); do
+            json="$(gcloud run services describe jobfinder-web --project "$PROJECT_ID" --region "$REGION" --format=json)"
+            created="$(jq -r '.status.latestCreatedRevisionName' <<<"$json")"
+            ready_rev="$(jq -r '.status.latestReadyRevisionName' <<<"$json")"
+            ready="$(jq -r '[.status.conditions[] | select(.type=="Ready")][0].status' <<<"$json")"
+            echo "created=$created ready_revision=$ready_rev Ready=$ready"
+            if [ "$created" = "$ready_rev" ] && [ "$ready" = "True" ]; then
+              echo "revision $created is Ready"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::the new revision did not become Ready within 5 minutes"
+          exit 1

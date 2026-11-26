@@ -35,6 +35,18 @@ jobs:
           python3 -m pip install --user "uv==0.13.9"
           uv python install "$(cat apps/jobfinder/.python-version)"
 
+      - name: Install Terraform
+        run: |
+          .devcontainer/install-terraform.sh "$HOME/.local/bin"
+
+      - name: Terraform format and validate (no backend, no cloud)
+        run: |
+          terraform fmt -check -recursive infra
+          for layer in platform app; do
+            terraform -chdir=infra/$layer init -backend=false -input=false
+            terraform -chdir=infra/$layer validate
+          done
+
       - name: Build
         run: scripts/build.sh
 
