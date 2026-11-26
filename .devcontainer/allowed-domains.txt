@@ -13,6 +13,10 @@ registry.npmjs.org
 pypi.org
 files.pythonhosted.org
 
+# Terraform (infra/, ADR-0009): provider downloads for `terraform init`, release metadata
+registry.terraform.io
+releases.hashicorp.com
+
 # OpenAI API (runtime models, spike and eval scripts)
 api.openai.com
 

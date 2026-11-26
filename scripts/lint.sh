@@ -19,6 +19,15 @@ run "json" check_json
 run "markdown links" python3 scripts/check_md_links.py
 run "A-1 only from runtime and spikes" python3 scripts/check_a1.py
 run "no Proposed ADRs (accept before merge)" python3 scripts/check_adr_status.py
+run "infra rules (no pull_request_target, no allUsers)" python3 scripts/check_infra.py
+
+if command -v terraform >/dev/null 2>&1; then
+  run "terraform fmt" terraform fmt -check -recursive infra
+elif [ -n "${CI:-}" ]; then
+  echo "== terraform fmt"; echo "terraform is not installed"; failed+=("terraform fmt")
+else
+  echo "== terraform fmt"; echo "skipped: terraform not installed (it is in the dev container and in CI)"
+fi
 
 # Python application (ADR-0005)
 APP=apps/jobfinder

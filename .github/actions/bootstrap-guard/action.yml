@@ -1,0 +1,68 @@
+# Shared first step of deploy.yml, app-plan.yml and drift.yml (docs/changes/69-infra-ci-deploy/plan.md).
+# The platform layer is applied by the owner after the PR that adds these workflows is merged, so
+# until the Environment variables exist there is nothing to deploy to:
+#   - all variables empty: ready=false, a notice, exit 0 (the run is green and does nothing);
+#   - all set: ready=true;
+#   - some set, some empty: fail, naming the empty ones (a half-done bootstrap is a mistake).
+# Before any of that it masks the project ID, project number and state bucket in the logs.
+name: Bootstrap guard
+description: Detects whether the owner has finished the bootstrap (docs/runbooks/bootstrap.md)
+
+inputs:
+  project-id:
+    description: GCP_PROJECT_ID
+    required: false
+  project-number:
+    description: GCP_PROJECT_NUMBER
+    required: false
+  wif-provider:
+    description: GCP_WIF_PROVIDER
+    required: false
+  service-account:
+    description: The service account of this workflow (GCP_APP_PLAN_SA or GCP_DEPLOYER_SA)
+    required: false
+  state-bucket:
+    description: GCP_STATE_BUCKET
+    required: false
+  image-repository:
+    description: GCP_IMAGE_REPOSITORY
+    required: false
+
+outputs:
+  ready:
+    description: "true when the bootstrap is done"
+    value: ${{ steps.check.outputs.ready }}
+
+runs:
+  using: composite
+  steps:
+    - id: check
+      shell: bash
+      env:
+        IN_PROJECT_ID: ${{ inputs.project-id }}
+        IN_PROJECT_NUMBER: ${{ inputs.project-number }}
+        IN_WIF_PROVIDER: ${{ inputs.wif-provider }}
+        IN_SERVICE_ACCOUNT: ${{ inputs.service-account }}
+        IN_STATE_BUCKET: ${{ inputs.state-bucket }}
+        IN_IMAGE_REPOSITORY: ${{ inputs.image-repository }}
+      run: |
+        set -euo pipefail
+        # Logs of a public repository are public: mask the identifiers before anything else, so plan
+        # and gcloud output shows ***.
+        for value in "$IN_PROJECT_ID" "$IN_PROJECT_NUMBER" "$IN_STATE_BUCKET"; do
+          if [ -n "$value" ]; then echo "::add-mask::$value"; fi
+        done
+        empty=()
+        for name in PROJECT_ID PROJECT_NUMBER WIF_PROVIDER SERVICE_ACCOUNT STATE_BUCKET IMAGE_REPOSITORY; do
+          var="IN_${name}"
+          if [ -z "${!var}" ]; then empty+=("$name"); fi
+        done
+        if [ "${#empty[@]}" -eq 6 ]; then
+          echo "::notice::bootstrap not done, see docs/runbooks/bootstrap.md"
+          echo "ready=false" >> "$GITHUB_OUTPUT"
+        elif [ "${#empty[@]}" -gt 0 ]; then
+          echo "::error::bootstrap is half done; these Environment variables are empty: ${empty[*]} (docs/runbooks/bootstrap.md)"
+          exit 1
+        else
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+        fi

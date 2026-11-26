@@ -1,0 +1,91 @@
+# Weekly check that the app layer matches Terraform (ADR-0009). Same read-only identity as app-plan;
+# fails on any difference. workflow_dispatch is kept so the check can be run by hand. Its identifiers
+# are variables of the Environment `plan`, like app-plan.yml.
+name: drift
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  drift:
+    environment: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      REGION: us-central1
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - id: guard
+        uses: ./.github/actions/bootstrap-guard
+        with:
+          project-id: ${{ vars.GCP_PROJECT_ID }}
+          project-number: ${{ vars.GCP_PROJECT_NUMBER }}
+          wif-provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service-account: ${{ vars.GCP_APP_PLAN_SA }}
+          state-bucket: ${{ vars.GCP_STATE_BUCKET }}
+          image-repository: ${{ vars.GCP_IMAGE_REPOSITORY }}
+
+      - if: steps.guard.outputs.ready == 'true'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_APP_PLAN_SA }}
+
+      - if: steps.guard.outputs.ready == 'true'
+        name: Install Terraform
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          .devcontainer/install-terraform.sh "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - if: steps.guard.outputs.ready == 'true'
+        name: Read the deployed image
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          IMAGE_REPOSITORY: ${{ vars.GCP_IMAGE_REPOSITORY }}
+        run: |
+          # Fall back to the all-zero digest only when the service does not exist yet (before the first
+          # deploy). Any other gcloud error, e.g. permission denied, fails the step.
+          err="$(mktemp)"
+          if image="$(gcloud run services describe jobfinder-web --project "$PROJECT_ID" --region "$REGION" \
+            --format='value(spec.template.spec.containers[0].image)' 2>"$err")"; then
+            if ! [[ "$image" =~ @sha256:[0-9a-f]{64}$ ]]; then
+              echo "::error::the deployed image is not referenced by digest: ${image}"
+              exit 1
+            fi
+          elif grep -qE 'NOT_FOUND|Cannot find service' "$err"; then
+            echo "::notice::jobfinder-web does not exist yet, planning with a placeholder digest"
+            image="${IMAGE_REPOSITORY}/jobfinder@sha256:$(printf '0%.0s' {1..64})"
+          else
+            cat "$err" >&2
+            echo "::error::could not read the deployed image (see the gcloud error above)"
+            exit 1
+          fi
+          echo "TF_VAR_image=$image" >> "$GITHUB_ENV"
+
+      - if: steps.guard.outputs.ready == 'true'
+        name: Terraform plan, fail on any difference
+        working-directory: infra/app
+        env:
+          TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+          TF_VAR_project_number: ${{ vars.GCP_PROJECT_NUMBER }}
+          STATE_BUCKET: ${{ vars.GCP_STATE_BUCKET }}
+        run: |
+          terraform init -input=false -backend-config="bucket=${STATE_BUCKET}"
+          set +e
+          terraform plan -input=false -lock=false -no-color -detailed-exitcode
+          code=$?
+          set -e
+          if [ "$code" -eq 2 ]; then
+            echo "::error::drift: the deployed app layer differs from infra/app"
+          fi
+          exit "$code"
