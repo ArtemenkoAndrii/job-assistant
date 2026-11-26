@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars (git-ignored) in Cloud Shell and fill in. Never commit real values.
+project_id      = "job-finder-xxxxxx"
+billing_account = "XXXXXX-XXXXXX-XXXXXX"
+owner_email     = "owner@example.com"
+state_bucket    = "job-finder-xxxxxx-tfstate"
+files_bucket    = "job-finder-files-xxxxxx"
