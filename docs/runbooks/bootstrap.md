@@ -88,7 +88,7 @@ printf '%s' '<value>' | gcloud secrets versions add <secret-id> --data-file=- --
 | `owner-email` | your Google account, lower case | #70 (the app's owner check) |
 | `a1-client-id`, `a1-client-secret` | A-1 service token (Cloudflare Access) | the A-1 slice |
 | `openai-api-key` | OpenAI API key | the first LLM step |
-| `email-api-key` | the sender's OAuth secret (ADR-0010) | email delivery |
+| `email-sender` | JSON with the sender's OAuth client id, client secret, refresh token and sender address (ADR-0010) | email delivery |
 
 Rotation (NFR-S5): add a new version, then destroy the old one, so the free six active versions are not exceeded.
 

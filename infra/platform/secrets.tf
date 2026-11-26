@@ -1,4 +1,5 @@
-# Secret containers and who may read them (ADR-0006, ADR-0008, ADR-0010). The values are added by the
+# Secret containers and who may read them (ADR-0006, ADR-0008, ADR-0010; `email-sender` holds the JSON
+# with client id, client secret, refresh token and sender address). The values are added by the
 # owner with `gcloud secrets versions add`, so they never pass through the repo, CI or any state.
 # There is deliberately no google_secret_manager_secret_version here.
 locals {
@@ -6,7 +7,7 @@ locals {
     "a1-client-id"     = ["worker"]
     "a1-client-secret" = ["worker"]
     "openai-api-key"   = ["web", "worker"]
-    "email-api-key"    = ["worker"]
+    "email-sender"     = ["worker"]
     "owner-email"      = ["web"]
   }
 

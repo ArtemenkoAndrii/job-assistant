@@ -4,6 +4,7 @@
 #   - all variables empty: ready=false, a notice, exit 0 (the run is green and does nothing);
 #   - all set: ready=true;
 #   - some set, some empty: fail, naming the empty ones (a half-done bootstrap is a mistake).
+# Before any of that it masks the project ID, project number and state bucket in the logs.
 name: Bootstrap guard
 description: Detects whether the owner has finished the bootstrap (docs/runbooks/bootstrap.md)
 
@@ -46,6 +47,11 @@ runs:
         IN_IMAGE_REPOSITORY: ${{ inputs.image-repository }}
       run: |
         set -euo pipefail
+        # Logs of a public repository are public: mask the identifiers before anything else, so plan
+        # and gcloud output shows ***.
+        for value in "$IN_PROJECT_ID" "$IN_PROJECT_NUMBER" "$IN_STATE_BUCKET"; do
+          if [ -n "$value" ]; then echo "::add-mask::$value"; fi
+        done
         empty=()
         for name in PROJECT_ID PROJECT_NUMBER WIF_PROVIDER SERVICE_ACCOUNT STATE_BUCKET IMAGE_REPOSITORY; do
           var="IN_${name}"
