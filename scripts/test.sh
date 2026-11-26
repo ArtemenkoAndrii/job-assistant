@@ -6,6 +6,9 @@ cd "$(git rev-parse --show-toplevel)"
 echo "== hook tests"
 python3 -m unittest discover -s tests/hooks -p 'test_*.py' -v
 
+echo "== script tests"
+python3 -m unittest discover -s tests/scripts -p 'test_*.py' -v
+
 echo "== application tests"
 cd apps/jobfinder
 uv run --locked pytest
