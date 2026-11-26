@@ -27,13 +27,17 @@ In the [Firebase console](https://console.firebase.google.com) choose *Add proje
 
 ### 3. Apply the platform layer (Cloud Shell)
 
-Cloud Shell is already signed in as you and has `gcloud` and Terraform, so no key exists anywhere.
+Cloud Shell is already signed in as you and has `gcloud`, so no key exists anywhere. It has no Terraform: install the pinned version with the repo's script, which checks the SHA256 pinned in `infra/.terraform-sha256`. The home folder persists, so this is done once.
 
 ```bash
 git clone https://github.com/ArtemenkoAndrii/job-assistant.git
 cd job-assistant/infra/platform
+mkdir -p ~/bin && ../../.devcontainer/install-terraform.sh ~/bin && export PATH=~/bin:$PATH
 cp terraform.tfvars.example terraform.tfvars   # edit: project, billing account, your Google account, bucket names
-terraform init -backend=false                  # first apply uses local state: the state bucket does not exist yet
+# The state bucket does not exist yet, so the first apply uses local state. `-backend=false` is not
+# enough for plan/apply; a git-ignored override file switches the backend to local for now.
+printf 'terraform {\n  backend "local" {}\n}\n' > backend_override.tf
+terraform init -reconfigure
 terraform plan
 terraform apply
 ```
@@ -44,6 +48,7 @@ Then move the state into the bucket Terraform just created, and re-initialise:
 
 ```bash
 terraform output state_bucket
+rm backend_override.tf
 terraform init -migrate-state -backend-config="bucket=<state-bucket>"   # answer yes
 terraform plan                                                          # expect: No changes
 rm -f terraform.tfstate terraform.tfstate.backup terraform.tfvars

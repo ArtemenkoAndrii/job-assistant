@@ -1,12 +1,14 @@
 # Service accounts and every role they get (ADR-0006, ADR-0009). CI accounts never hold rights over
 # IAM, data or secret values.
 locals {
+  # Key: the role name used in the ADRs and below. id: the GCP account ID, which must be 6-30
+  # characters, so the web app's account is `web-app`.
   service_accounts = {
-    web       = "Job Finder web app (Cloud Run service)"
-    worker    = "Job Finder run worker (Cloud Run job)"
-    scheduler = "Cloud Scheduler: starts the worker job"
-    app-plan  = "CI: read-only plan of the app layer"
-    deployer  = "CI: deploys the app layer from main"
+    web       = { id = "web-app", name = "Job Finder web app (Cloud Run service)" }
+    worker    = { id = "worker", name = "Job Finder run worker (Cloud Run job)" }
+    scheduler = { id = "scheduler", name = "Cloud Scheduler: starts the worker job" }
+    app-plan  = { id = "app-plan", name = "CI: read-only plan of the app layer" }
+    deployer  = { id = "deployer", name = "CI: deploys the app layer from main" }
   }
   state_bucket_app_prefix = "projects/_/buckets/${google_storage_bucket.state.name}/objects/app/"
 }
@@ -14,8 +16,8 @@ locals {
 resource "google_service_account" "this" {
   for_each = local.service_accounts
 
-  account_id   = each.key
-  display_name = each.value
+  account_id   = each.value.id
+  display_name = each.value.name
 
   depends_on = [google_project_service.enabled]
 }

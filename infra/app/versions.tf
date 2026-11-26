@@ -23,7 +23,7 @@ provider "google" {
 locals {
   # Service accounts are created by the platform layer; their addresses follow from the project ID,
   # so this layer never reads the platform state.
-  web_sa_email       = "web@${var.project_id}.iam.gserviceaccount.com"
+  web_sa_email       = "web-app@${var.project_id}.iam.gserviceaccount.com"
   worker_sa_email    = "worker@${var.project_id}.iam.gserviceaccount.com"
   scheduler_sa_email = "scheduler@${var.project_id}.iam.gserviceaccount.com"
 
