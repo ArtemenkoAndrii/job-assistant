@@ -98,7 +98,7 @@ printf '%s' '<value>' | gcloud secrets versions add <secret-id> --data-file=- --
 
 The worker reads `a1-url`, `a1-client-id`, `a1-client-secret` and `email-sender` through the Secret Manager API when a run needs them; no Cloud Run resource references them, so the deploy does not wait for these values. Until a value exists, the matching check on the Settings page reports *not configured*.
 
-**Order after the merge of #71** (the platform change is in that PR, so it cannot be applied before the merge): merge, then re-run step 3 from `main` (the new `a1-url` container and `roles/datastore.indexViewer` for `app-plan`), then add the values above, then press "Check A-1" and "Send test email" on the Settings page. Until `indexViewer` is applied, `app-plan` and drift runs fail with permission denied on the new Firestore indexes.
+**Order after the merge of #71** (the platform change is in that PR, so it cannot be applied before the merge): merge, then re-run step 3 from `main` (the new `a1-url` container and the index viewer custom role for `app-plan`), then add the values above, then press "Check A-1" and "Send test email" on the Settings page. Until `indexViewer` is applied, `app-plan` and drift runs fail with permission denied on the new Firestore indexes.
 
 Rotation (NFR-S5): add a new version, then destroy the old one, so the free six active versions are not exceeded.
 
