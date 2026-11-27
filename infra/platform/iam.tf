@@ -77,14 +77,29 @@ resource "google_storage_bucket_iam_member" "deployer_state_write" {
   }
 }
 
-# app-plan: read-only. No data, secret, IAM-admin or platform-state access. `datastore.indexViewer`
-# (ADR-0009) lets it read the composite indexes of the app layer (infra/app/indexes.tf, #71); without
-# it app-plan and drift fail with permission denied once an index exists.
+# app-plan: read-only. No data, secret, IAM-admin or platform-state access. ADR-0009 names a
+# "datastore index viewer", but GCP has no such predefined role (`roles/datastore.indexViewer` is
+# rejected) and `datastore.viewer` would also read data. A custom role with only the index read
+# permissions lets app-plan and drift read the app layer's composite indexes (#71).
+resource "google_project_iam_custom_role" "index_viewer" {
+  role_id     = "indexViewer"
+  title       = "Firestore index viewer"
+  description = "Read Firestore composite indexes, no data"
+  permissions = ["datastore.indexes.get", "datastore.indexes.list"]
+
+  depends_on = [google_project_service.enabled]
+}
+
+resource "google_project_iam_member" "app_plan_index_viewer" {
+  project = var.project_id
+  role    = google_project_iam_custom_role.index_viewer.id
+  member  = "serviceAccount:${google_service_account.this["app-plan"].email}"
+}
+
 resource "google_project_iam_member" "app_plan" {
   for_each = toset([
     "roles/run.viewer",
     "roles/cloudscheduler.viewer",
-    "roles/datastore.indexViewer",
     "roles/iam.serviceAccountViewer",
   ])
 

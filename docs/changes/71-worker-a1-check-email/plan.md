@@ -113,3 +113,5 @@ Commands: `scripts/build.sh`, `scripts/test.sh`, `scripts/lint.sh`, `scripts/aud
 - **Lease loss** writes one final record for its own run (`stopped`, `lease_lost`) and then exits; the ADR-0007 gap (a stalled worker may write for up to one renewal interval) is accepted as written.
 - **Retention:** run records 30 days; `page_loads` documents 365 days (ADR-0007: 12 months).
 - **Not run in this session** (sandbox limits): `terraform init`/`validate` (provider download blocked) and `scripts/audit.sh` (read-only cache directories). `terraform fmt -check` passes on both layers; the CI `app-plan` validates the app layer.
+- **Index viewer for `app-plan` (found in the owner's platform apply):** `roles/datastore.indexViewer` does not exist in GCP ("not supported for this resource"); ADR-0009's "datastore index viewer" is implemented as a custom role `indexViewer` with `datastore.indexes.get` and `datastore.indexes.list` only (no data access), as for `stateLister`.
+
