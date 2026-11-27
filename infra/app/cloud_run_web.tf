@@ -21,6 +21,26 @@ resource "google_cloud_run_v2_service" "web" {
         container_port = 8080
       }
 
+      # App settings (ADR-0008). The owner's address comes from Secret Manager, read when an
+      # instance starts: a changed value needs the next deploy or an instance restart.
+      env {
+        name  = "JOBFINDER_ENVIRONMENT"
+        value = "production"
+      }
+      env {
+        name  = "JOBFINDER_PROJECT_NUMBER"
+        value = var.project_number
+      }
+      env {
+        name = "JOBFINDER_OWNER_EMAIL"
+        value_source {
+          secret_key_ref {
+            secret  = "owner-email"
+            version = "latest"
+          }
+        }
+      }
+
       resources {
         limits = {
           cpu    = "1"
