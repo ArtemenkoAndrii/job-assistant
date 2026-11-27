@@ -41,7 +41,8 @@ Option 2. This replaces only the Origin rule in ADR-0008 §5; everything else in
 1. Every method other than GET, HEAD and OPTIONS must carry an `Origin` header equal to `"https://" + Host` of the same request. The host is compared case-insensitively; `X-Forwarded-Host` is not used. A missing or different `Origin` answers **403**.
 2. The check runs for all such requests, including those without a valid token.
 3. There is no configured list of origins; the `allowed_origins` setting named in ADR-0008's follow-ups is not created.
-4. Tests cover: foreign `Origin`, missing `Origin`, matching `Host` on the deterministic and the hash URL, and an `Origin` that matches only `X-Forwarded-Host` (refused).
+4. Tests cover: foreign `Origin`, missing `Origin`, matching `Host` on the deterministic and the hash URL, an `Origin` that matches only `X-Forwarded-Host` (refused), and the scheme rule of point 5 (`http://` + `Host` accepted in `dev`, refused in production).
+5. In `dev` mode only (local runs without TLS), `"http://" + Host` is accepted as well. Production accepts `https://` only. The mode is the one of ADR-0008 §6, which cannot start on Cloud Run.
 
 ## Consequences
 
