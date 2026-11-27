@@ -92,7 +92,7 @@ ADRs are not edited. The use case file is unchanged unless wording diverges.
 | AC14, AC15 | `test_email_channel.py`, `test_worker.py`: fake channel receives one message; error codes mapped |
 | AC16 | `test_worker.py`, `test_email_channel.py`: `caplog` and stored documents contain none of the fake secrets, address, host or text |
 | AC17 | `test_card_template.py`: states at 360 px rules, 44 px buttons, text status |
-| AC18 | `test_infra_secrets.py`: readers of the four secrets are `worker` only; no `secret_key_ref`/`env` for them on either resource; `terraform validate` |
+| AC18 | `scripts/check_infra.py` (run by `scripts/lint.sh`) with `tests/scripts/test_check_infra.py`: readers of the four secrets are `worker` only; no reference to them in any `infra/app` file; `terraform fmt -check` here, `terraform validate` by CI `app-plan` |
 | AC19 | Post-deploy screenshots and the arrived message, recorded in a follow-up Proof PR (pending until then) |
 | AC20 | `conftest.py` socket guard + `test_socket_guard.py`; full `scripts/test.sh` output |
 | AC21 | `test_secret_reader.py`, `test_worker.py`: missing secret/version → `a1_not_configured` / `email_not_configured`, gateway never created |
