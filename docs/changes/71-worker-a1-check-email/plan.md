@@ -102,4 +102,14 @@ Commands: `scripts/build.sh`, `scripts/test.sh`, `scripts/lint.sh`, `scripts/aud
 
 ## Divergence log
 
-<Filled during implementation.>
+- **No `mcp` SDK.** `McpSession` is implemented by a small synchronous Streamable HTTP client over `httpx` (`browser/mcp_session.py`), the plan's fallback chosen up front: the SDK is async and heavy, and the protocol needs only `initialize`, `notifications/initialized` and `tools/call`. No dependency was added (`pyproject.toml` and `uv.lock` are unchanged), so `pip-audit` has nothing new to report. Its tests use `httpx.MockTransport` instead of a local fake server, so no test opens a socket.
+- **Two reason codes added** to the spec's table: `off_policy` (the browser ended on another host) and `internal_error` (any unexpected exception in a run, recorded without details).
+- **New helper modules:** `jobfinder/gcp.py` (ADC access token, used by the secret reader and the job starter); `SettingsRepository.notification_email()` for the worker.
+- **`email-sender` JSON keys** are `client_id`, `client_secret`, `refresh_token`, `sender` (documented in the runbook step 5).
+- **Worker environment:** `JOBFINDER_ENVIRONMENT` and `JOBFINDER_PROJECT_NUMBER` (the secret reader needs the project number); no secret references.
+- **Worker `dev` mode** uses in-memory dependencies, so the CI image smoke test (`docker run ... python -m jobfinder.worker`) and `test_worker_starts` need no Firestore; `.github/workflows/ci.yml` passes `-e JOBFINDER_ENVIRONMENT=dev`.
+- **`scripts/check_a1.py`** allows the one runtime file and its test that use the Cloudflare Access header names (`browser/mcp_session.py`, `tests/unit/test_mcp_session.py`); the rule's own text said the runtime would be allowed once it existed.
+- **AC18** is enforced by `scripts/check_infra.py` (run by `scripts/lint.sh`) with tests in `tests/scripts/test_check_infra.py`, not by `tests/unit/test_infra_secrets.py`.
+- **Lease loss** writes one final record for its own run (`stopped`, `lease_lost`) and then exits; the ADR-0007 gap (a stalled worker may write for up to one renewal interval) is accepted as written.
+- **Retention:** run records 30 days; `page_loads` documents 365 days (ADR-0007: 12 months).
+- **Not run in this session** (sandbox limits): `terraform init`/`validate` (provider download blocked) and `scripts/audit.sh` (read-only cache directories). `terraform fmt -check` passes on both layers; the CI `app-plan` validates the app layer.
