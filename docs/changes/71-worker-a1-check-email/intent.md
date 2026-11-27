@@ -25,7 +25,7 @@ The deployed system has a web app with sign-in (#70) but nothing behind it. The 
 ## Affected users and systems
 
 - Users: the owner, on a phone and on a laptop.
-- Systems: `jobfinder-web` (button, queueing, result display, starting the job), `jobfinder-worker` (lease, run execution), `BrowserGateway` (first use, ADR-0011), `Notifier` and `EmailChannel` (ADR-0010), Firestore (`runs`, `locks/worker`), Secret Manager (A-1 token, `email-sender`), service-account permissions and job configuration in `infra/app` and `infra/platform`.
+- Systems: `jobfinder-web` (button, queueing, result display, starting the job), `jobfinder-worker` (lease, run execution), `BrowserGateway` (first use, ADR-0011), `Notifier` and `EmailChannel` (ADR-0010), Firestore (`runs`, `locks/worker`), Secret Manager (A-1 URL, client id and secret, `email-sender`), service-account permissions and job configuration in `infra/app` and `infra/platform`.
 - Use cases: groundwork for UC-05 (Run now), UC-07 (Execute a run) and UC-09 (Receive the run summary); none is delivered in full.
 
 ## Constraints
@@ -39,8 +39,9 @@ The deployed system has a web app with sign-in (#70) but nothing behind it. The 
   - an OAuth client in Personal mode, in its own project;
   - the refresh token for `gmail.send`;
   - the `email-sender` secret value (JSON: client id, client secret, refresh token, sender address);
-  - the `a1-client-id` and `a1-client-secret` secret values.
-- The A-1 hostname must not appear in the repo.
+  - the `a1-client-id`, `a1-client-secret` and `a1-url` secret values (the last after the owner applies the platform change).
+- The A-1 hostname must not appear in the repo, in Terraform state or variables, or in CI and plan logs (public).
+- The new `a1-url` secret needs a platform-layer change (container and worker accessor in `infra/platform/secrets.tf`) that the owner applies before the app deploy.
 - CI and the dev container never reach A-1 or Gmail; the real check happens after deploy.
 
 ## Out of scope
@@ -54,6 +55,8 @@ The deployed system has a web app with sign-in (#70) but nothing behind it. The 
 
 ## Open questions
 
-1. Where does the A-1 endpoint URL live, given the hostname must not be in the repo: a new secret `a1-url` (read only by `worker`), or a GitHub Environment variable passed through Terraform to the job environment? Decide in the spec.
+None.
 
-Decided in review: the check opens a LinkedIn jobs search page built by the gateway; the test email has its own button; results are stored as `runs` documents with `trigger: validation` and `expire_at`.
+Decided in review:
+- The A-1 endpoint URL lives in a new secret `a1-url`, read only by `worker`. A GitHub Environment variable would pass through Terraform and appear in the `app` plan and drift logs, which are public. The secret container and the worker's accessor are a platform-layer change that the owner applies before the deploy; the spec and the runbook include it.
+- The check opens a LinkedIn jobs search page built by the gateway; the test email has its own button; results are stored as `runs` documents with `trigger: validation` and `expire_at`.
