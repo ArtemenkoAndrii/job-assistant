@@ -43,6 +43,8 @@ resource "google_project_iam_custom_role" "state_lister" {
   title       = "Terraform state lister"
   description = "List object names in the state bucket"
   permissions = ["storage.objects.list"]
+
+  depends_on = [google_project_service.enabled]
 }
 
 resource "google_storage_bucket_iam_member" "state_lister" {
@@ -119,7 +121,8 @@ resource "google_artifact_registry_repository_iam_member" "deployer_push" {
 }
 
 # Who may invoke the service and the job is set by Terraform in the app layer, so deployer needs the
-# IAM-policy permissions, but only on jobfinder-web and jobfinder-worker.
+# IAM-policy permissions of Cloud Run. Granted at project level without a condition: Cloud Run does not
+# support resource-name conditions, and the resources do not exist when this layer runs (ADR-0012).
 resource "google_project_iam_custom_role" "deployer_run_iam" {
   role_id     = "deployerRunIam"
   title       = "Deployer: Cloud Run IAM policy"
@@ -130,22 +133,14 @@ resource "google_project_iam_custom_role" "deployer_run_iam" {
     "run.jobs.getIamPolicy",
     "run.jobs.setIamPolicy",
   ]
+
+  depends_on = [google_project_service.enabled]
 }
 
 resource "google_project_iam_member" "deployer_run_iam" {
-  for_each = {
-    web    = "resource.type == \"run.googleapis.com/Service\" && resource.name.endsWith(\"/services/jobfinder-web\")"
-    worker = "resource.type == \"run.googleapis.com/Job\" && resource.name.endsWith(\"/jobs/jobfinder-worker\")"
-  }
-
   project = var.project_id
   role    = google_project_iam_custom_role.deployer_run_iam.id
   member  = "serviceAccount:${google_service_account.this["deployer"].email}"
-
-  condition {
-    title      = "jobfinder-${each.key}-only"
-    expression = each.value
-  }
 }
 
 # --- Runtime identities ---

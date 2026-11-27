@@ -142,3 +142,10 @@ Commands pasted into the PR: `scripts/build.sh`, `scripts/lint.sh`, `scripts/tes
 - GCP account IDs must be 6-30 characters, so `web` failed; the web app's account is now `web-app` (the role keeps the name `web` in the ADRs and in Terraform keys).
 - Cloud Shell has no Terraform: the runbook installs the pinned version with `install-terraform.sh`.
 - `init -backend=false` does not allow plan/apply with a `backend "gcs"` block: the runbook uses a git-ignored `backend_override.tf` (local backend) for the first apply, removed before `-migrate-state`.
+- Custom roles depend on the API enablement; a fresh custom role may need a second apply while IAM propagates (runbook).
+
+**First deploy (2026-11-27)**:
+
+- `deployer` was denied `run.services.setIamPolicy` and `run.jobs.setIamPolicy`: Cloud Run does not support resource-name IAM conditions. The custom role is now granted at project level without a condition ([ADR-0012](../../adr/0012-deployer-cloud-run-iam.md)).
+- The OAuth app stays in **Testing** with the owner as test user: *Publish app* needs a homepage and privacy policy on a verified domain. Deviates from ADR-0008's "In production"; runbook updated.
+
