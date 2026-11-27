@@ -20,10 +20,11 @@ Right after approval, the first commit saves this plan as `docs/changes/71-worke
 | File | Change |
 |---|---|
 | `docs/changes/71-worker-a1-check-email/plan.md` | new, this plan (first commit) |
-| `infra/platform/secrets.tf` | add `"a1-url" = ["worker"]` (container + worker accessor); **owner applies before the deploy** |
+| `infra/platform/secrets.tf` | add `"a1-url" = ["worker"]` (container + worker accessor); owner applies after the merge |
+| `infra/platform/iam.tf` | add `roles/datastore.indexViewer` to the `app-plan` roles and rewrite the comment above it (ADR-0009 lists it; it was skipped only because the app layer had no index); owner applies after the merge, otherwise `app-plan` and drift fail with permission denied on the new indexes |
 | `infra/app/cloud_run_worker.tf` | env `JOBFINDER_ENVIRONMENT=production`, `JOBFINDER_PROJECT_NUMBER`; no secret refs |
 | `infra/app/indexes.tf` | composite indexes: `runs (status, created_at)` for the oldest queued run, `runs (kind, created_at desc)` for the latest per kind |
-| `docs/runbooks/bootstrap.md` | step 5: six secrets, `a1-url` row (value: A-1 endpoint URL, needed from #71); order note (apply platform before deploy) |
+| `docs/runbooks/bootstrap.md` | step 5: six secrets, `a1-url` row (value: A-1 endpoint URL, needed from #71); order note: merge → apply `infra/platform` → add values |
 | `docs/architecture.md` | Secret Manager line lists `a1-url`; worker reads secrets at execution time |
 | `apps/jobfinder/pyproject.toml`, `uv.lock` | `uv add mcp` (fallback in Risks) |
 | `src/jobfinder/domain/runs.py` | new: `RunKind`, `RunStatus`, `Reason` enum, `Run` dataclass, reason → card text lookup |
@@ -47,17 +48,17 @@ ADRs are not edited. The use case file is unchanged unless wording diverges.
 ## Steps
 
 1. Commit `plan.md`.
-2. **Domain and repositories** (tests first): `Run`, enums, reason texts; in-memory `RunRepository` and `Lease`, then the Firestore versions with the same contract (transactions for `create_if_none_active` and lease take/renew/release). Tests: AC2, AC3, AC6–AC8 at repository level, `expire_at` = created + 30 days.
-3. **Secret reader**: protocol, fake, Secret Manager client (`httpx` with injectable transport). Tests with `httpx.MockTransport`: success, 404, `FAILED_PRECONDITION`, other error (AC21).
-4. **Stop triggers and gateway**: `evaluate()` pure function over recorded-style snippets (anonymised, written by hand): login wall, authwall, challenge, 403, normal results; gateway with `FakeSession`, injected `sleep`/`rng`; URL builder (https, linkedin.com, fixed keyword); counter increment and limit; only `browser_navigate` and `browser_snapshot` calls, no `filename` (AC9–AC13).
-5. **MCP session**: `McpSession` protocol and the real client; test the headers and the Cloudflare Access 401/403 → `a1_auth` mapping against a local fake streamable-HTTP server on localhost (the one test that opens a socket, allowed by the guard); if the SDK is unusable use the `httpx` JSON-RPC fallback.
-6. **Notifier and email channel**: `TestMessage`, `Notifier` calling channels independently; `EmailChannel` over `httpx.MockTransport` (token exchange, send, `invalid_grant` → `email_auth`, other → `email_send_failed`); no recipient, token or body in logs (AC14–AC16).
-7. **Worker `run_once()`**: lease, stale-running failure, dispatch, renewal task with an injectable clock, release in `finally`; the `__main__` wiring with real implementations and `SecretReader`; exit code 0 on a normal outcome. Tests: AC6–AC9, AC14–AC16, AC21 end to end with fakes.
-8. **Web routes and card**: `JobStarter` + fake; `POST /checks/a1|email` (protected: Origin, IAP, owner), idempotent while active, start failure → `start_error`, no 500; `GET /checks` fragment; vendored htmx and its protected route; template states and CSS; tests for AC1–AC5, AC17, AC22 (`TestClient`, test token fixture, 360 px rules asserted by CSS/markup checks as in `test_pages.py`).
-9. **Socket guard**: autouse fixture in `tests/conftest.py` patches `socket.socket.connect`; a test proves an outside address raises (AC20). Written before steps 4–8 so every later test runs under it.
-10. **Infra and docs**: `secrets.tf`, worker env, indexes, runbook, architecture; `terraform fmt -check` and `init -backend=false && validate` for both layers; AC18 test.
+2. **Socket guard first**: autouse fixture in `tests/conftest.py` patches `socket.socket.connect` (localhost, 127.0.0.1 and ::1 allowed, anything else raises); a test proves an outside address raises (AC20). Every later test runs under it.
+3. **Domain and repositories** (tests first): `Run`, enums, reason texts; in-memory `RunRepository` and `Lease`, then the Firestore versions with the same contract (transactions for `create_if_none_active` and lease take/renew/release). Tests: AC2, AC3, AC6–AC8 at repository level, `expire_at` = created + 30 days.
+4. **Secret reader**: protocol, fake, Secret Manager client (`httpx` with injectable transport). Tests with `httpx.MockTransport`: success, 404, `FAILED_PRECONDITION`, other error (AC21).
+5. **Stop triggers and gateway**: `evaluate()` pure function over recorded-style snippets (anonymised, written by hand): login wall, authwall, challenge, 403, normal results; gateway with `FakeSession`, injected `sleep`/`rng`; URL builder (https, linkedin.com, fixed keyword); counter increment and limit; only `browser_navigate` and `browser_snapshot` calls, no `filename` (AC9–AC13).
+6. **MCP session**: `McpSession` protocol and the real client; test the headers and the Cloudflare Access 401/403 → `a1_auth` mapping against a local fake streamable-HTTP server on localhost (the one test that opens a socket, allowed by the guard); if the SDK is unusable use the `httpx` JSON-RPC fallback.
+7. **Notifier and email channel**: `TestMessage`, `Notifier` calling channels independently; `EmailChannel` over `httpx.MockTransport` (token exchange, send, `invalid_grant` → `email_auth`, other → `email_send_failed`); no recipient, token or body in logs (AC14–AC16).
+8. **Worker `run_once()`**: lease, stale-running failure, dispatch, renewal task with an injectable clock, release in `finally`; the `__main__` wiring with real implementations and `SecretReader`; exit code 0 on a normal outcome. Tests: AC6–AC9, AC14–AC16, AC21 end to end with fakes.
+9. **Web routes and card**: `JobStarter` + fake; `POST /checks/a1|email` (protected: Origin, IAP, owner), idempotent while active, start failure → `start_error`, no 500; `GET /checks` fragment; vendored htmx and its protected route; template states and CSS; tests for AC1–AC5, AC17, AC22 (`TestClient`, test token fixture, 360 px rules asserted by CSS/markup checks as in `test_pages.py`).
+10. **Infra and docs**: `secrets.tf` (`a1-url`), `iam.tf` (`datastore.indexViewer` for `app-plan`, comment updated), worker env, indexes, runbook, architecture; `terraform fmt -check` and `init -backend=false && validate` for both layers; AC18 test.
 11. Run `scripts/build.sh`, `scripts/test.sh`, `scripts/lint.sh`, `scripts/audit.sh` (CI) and paste the output; run the `verifier` subagent and quote its verdict. Open the PR with `Refs #71` (not `Closes`) on the owner's go-ahead: AC19 is proven only after deploy.
-12. **Owner actions**, before and after the deploy: apply the platform layer (new `a1-url` container) before CI deploys; then add `a1-url`, `a1-client-id`, `a1-client-secret` and `email-sender` values (prerequisites in the spec). The checks report *not configured* until each value exists.
+12. **Owner actions, in this order** (the platform change is in this PR, so it cannot be applied before the merge; the deploy does not depend on it because no Cloud Run resource references a secret): merge → the owner applies `infra/platform` (the `a1-url` container with the worker's accessor, and `roles/datastore.indexViewer` for `app-plan`) → the owner adds the `a1-url`, `a1-client-id`, `a1-client-secret` and `email-sender` values (prerequisites in the spec) → AC19. The checks report *not configured* until each value exists; until `indexViewer` is applied `app-plan` and drift fail with permission denied on the new indexes.
 13. After deploy: AC19 (press "Check A-1" → successful snapshot; press "Send test email" → message arrives; screenshots at 360 and 1280 px; logs and run documents contain no address or host) is recorded in Proof by a follow-up Proof PR with `Closes #71`, as for #69 and #70. The verifier lists AC19 as pending until then.
 
 ## Risks
@@ -65,8 +66,9 @@ ADRs are not edited. The use case file is unchanged unless wording diverges.
 | Risk | Mitigation |
 |---|---|
 | Cloud Run rejects a job update that references a secret without a version | No secret refs anywhere; the worker reads at execution time (AC18, AC21) |
-| `a1-url` container missing at deploy | Nothing in the app layer references it; the worker gets `NotConfigured` until the owner applies `secrets.tf` and adds the value; the plan lists the order |
-| `mcp` SDK does not support Python 3.14 or fails `pip-audit` | Fallback: a minimal JSON-RPC-over-HTTP client behind `McpSession` (same tests); decide at step 5 and note it in the Divergence log |
+| `a1-url` container missing at deploy | Nothing in the app layer references it; the worker gets `NotConfigured` until the owner applies `infra/platform` after the merge and adds the value; order in step 12 |
+| `app-plan` lacks `indexViewer` once the indexes merge | Role added in `iam.tf` in this PR; owner applies it right after the merge (step 12); until then `app-plan` and drift show permission denied |
+| `mcp` SDK does not support Python 3.14 or fails `pip-audit` | Fallback: a minimal JSON-RPC-over-HTTP client behind `McpSession` (same tests); decide at step 6 and note it in the Divergence log |
 | Firestore transactions (lease, `create_if_none_active`) are tested only with fakes | Keep the Firestore code small and mirror the contract tests; first real exercise is AC19; the lease only matters for concurrent executions |
 | Composite indexes missing → query fails at runtime | Indexes in `infra/app/indexes.tf` (deployer has `indexAdmin`); `latest(kind)` uses the index; active check reads `latest` so no third index |
 | LinkedIn shows an authwall or changes the page → false failure | Distinct reasons (`login_wall`, `challenge`, `empty_snapshot`) so the card says what to do; one page, no retry |

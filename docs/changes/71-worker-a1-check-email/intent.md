@@ -41,7 +41,7 @@ The deployed system has a web app with sign-in (#70) but nothing behind it. The 
   - the `email-sender` secret value (JSON: client id, client secret, refresh token, sender address);
   - the `a1-client-id`, `a1-client-secret` and `a1-url` secret values (the last after the owner applies the platform change).
 - The A-1 hostname must not appear in the repo, in Terraform state or variables, or in CI and plan logs (public).
-- The new `a1-url` secret needs a platform-layer change (container and worker accessor in `infra/platform/secrets.tf`) that the owner applies before the app deploy.
+- The new `a1-url` secret needs a platform-layer change (container and worker accessor in `infra/platform/secrets.tf`) that the owner applies from `main` after the merge (the deploy does not depend on it).
 - CI and the dev container never reach A-1 or Gmail; the real check happens after deploy.
 
 ## Out of scope
@@ -58,5 +58,5 @@ The deployed system has a web app with sign-in (#70) but nothing behind it. The 
 None.
 
 Decided in review:
-- The A-1 endpoint URL lives in a new secret `a1-url`, read only by `worker`. A GitHub Environment variable would pass through Terraform and appear in the `app` plan and drift logs, which are public. The secret container and the worker's accessor are a platform-layer change that the owner applies before the deploy; the spec and the runbook include it.
+- The A-1 endpoint URL lives in a new secret `a1-url`, read only by `worker`. A GitHub Environment variable would pass through Terraform and appear in the `app` plan and drift logs, which are public. The secret container and the worker's accessor are a platform-layer change that the owner applies from `main` after the merge; the spec and the runbook include it.
 - The check opens a LinkedIn jobs search page built by the gateway; the test email has its own button; results are stored as `runs` documents with `trigger: validation` and `expire_at`.
