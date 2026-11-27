@@ -80,4 +80,10 @@ Commands pasted into the PR: `scripts/build.sh`, `scripts/lint.sh`, `scripts/tes
 
 ## Divergence log
 
-(Filled during implementation.)
+- **`/openapi.json` was open.** The route-inventory test found that FastAPI served the schema without a token. Fixed with `openapi_url=None` (spec NFR-S1); `test_docs_and_schema_are_not_exposed` covers it.
+- **Route inventory** reads `original_router.routes` of the included router (this FastAPI version wraps included routers); the test asserts that `/health` is the only route registered outside the protected router.
+- **Stylesheet** is a protected route `/static/app.css` (FileResponse), not a `StaticFiles` mount, so it is behind the same checks as the pages.
+- **Dev mode** uses an in-memory settings repository and the stand-in identity `dev@example.test`; production and tests choose the repository through `create_app` arguments.
+- **Header order:** Sign out follows the navigation in the page source (keyboard order); CSS puts it on the first row at 360 px.
+- **`terraform validate`** for `infra/app` could not run in this session (`releases.hashicorp.com` answered 502 during `init`); `terraform fmt` passed in `scripts/lint.sh`. CI runs init and validate (AC17).
+- Tests: 49 (the 401/403 refusal-page cases are one test, not two).
