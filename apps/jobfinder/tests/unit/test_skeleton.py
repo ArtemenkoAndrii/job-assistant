@@ -1,5 +1,6 @@
 """Smoke tests: the web app and the worker start."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from jobfinder import __version__
@@ -17,5 +18,7 @@ def test_api_docs_are_not_public() -> None:
     assert TestClient(app).get("/docs").status_code == 404
 
 
-def test_worker_starts() -> None:
+def test_worker_starts(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("JOBFINDER_ENVIRONMENT", "dev")
+    monkeypatch.delenv("K_SERVICE", raising=False)
     assert worker_main() == 0

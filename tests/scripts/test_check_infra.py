@@ -58,6 +58,44 @@ class CheckInfra(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertIn("1.9.8", errors[0])
 
+    SECRETS_OK = (
+        'locals {\n  secrets = {\n'
+        '    "a1-url"           = ["worker"]\n'
+        '    "a1-client-id"     = ["worker"]\n'
+        '    "a1-client-secret" = ["worker"]\n'
+        '    "email-sender"     = ["worker"]\n'
+        '    "owner-email"      = ["web"]\n  }\n}\n'
+    )
+
+    def test_worker_only_secrets_pass(self):
+        files = {"infra/platform/secrets.tf": self.SECRETS_OK, "infra/app/web.tf": 'secret = "owner-email"\n'}
+        self.assertEqual(self.run_check(files), [])
+
+    def test_secret_readable_by_web_fails(self):
+        text = self.SECRETS_OK.replace('"a1-url"           = ["worker"]', '"a1-url"           = ["web", "worker"]')
+        errors = self.run_check({"infra/platform/secrets.tf": text})
+        self.assertEqual(len(errors), 1)
+        self.assertIn("a1-url", errors[0])
+
+    def test_missing_secret_fails(self):
+        text = self.SECRETS_OK.replace('    "a1-url"           = ["worker"]\n', "")
+        errors = self.run_check({"infra/platform/secrets.tf": text})
+        self.assertEqual(len(errors), 1)
+        self.assertIn("a1-url is missing", errors[0])
+
+    def test_cloud_run_reference_fails(self):
+        files = {
+            "infra/platform/secrets.tf": self.SECRETS_OK,
+            "infra/app/cloud_run_worker.tf": '  secret  = "email-sender"\n',
+        }
+        errors = self.run_check(files)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("email-sender", errors[0])
+
+    def test_secret_name_in_comment_passes(self):
+        files = {"infra/platform/secrets.tf": self.SECRETS_OK, "infra/app/w.tf": '# "a1-url" is read at run time\n'}
+        self.assertEqual(self.run_check(files), [])
+
     GOOD_HASH = "a" * 64
     OTHER_HASH = "b" * 64
 

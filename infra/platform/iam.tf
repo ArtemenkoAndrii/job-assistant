@@ -77,12 +77,14 @@ resource "google_storage_bucket_iam_member" "deployer_state_write" {
   }
 }
 
-# app-plan: read-only. No data, secret, IAM-admin or platform-state access. (ADR-0009 also lists a
-# datastore index viewer; the app layer has no composite index yet, so nothing needs it.)
+# app-plan: read-only. No data, secret, IAM-admin or platform-state access. `datastore.indexViewer`
+# (ADR-0009) lets it read the composite indexes of the app layer (infra/app/indexes.tf, #71); without
+# it app-plan and drift fail with permission denied once an index exists.
 resource "google_project_iam_member" "app_plan" {
   for_each = toset([
     "roles/run.viewer",
     "roles/cloudscheduler.viewer",
+    "roles/datastore.indexViewer",
     "roles/iam.serviceAccountViewer",
   ])
 

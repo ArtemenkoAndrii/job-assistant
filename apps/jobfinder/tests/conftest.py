@@ -1,6 +1,11 @@
-"""Shared fixtures: test IAP signing key, token helper, app factory. No network, no Firestore."""
+"""Shared fixtures: test IAP signing key, token helper, app factory. No network, no Firestore.
+
+An autouse fixture blocks every socket connection except to localhost (NFR-M5, spec AC20), so a
+test that reaches A-1, LinkedIn, Gmail or Google fails instead of calling out.
+"""
 
 import json
+import socket
 import time
 from collections.abc import Callable
 from typing import Any
@@ -12,9 +17,41 @@ from fastapi.testclient import TestClient
 from jwt.algorithms import ECAlgorithm
 
 from jobfinder.config import Settings
+from jobfinder.storage.runs_repo import InMemoryRunRepository
 from jobfinder.storage.settings_repo import InMemorySettingsRepository
 from jobfinder.web.app import create_app
 from jobfinder.web.auth import IAP_HEADER, IAP_ISSUER, KeyProvider
+from jobfinder.web.jobs import JobStartError
+
+LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+class NetworkBlockedError(RuntimeError):
+    """A test tried to connect to something other than localhost."""
+
+
+@pytest.fixture(autouse=True)
+def block_outside_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    real_connect = socket.socket.connect
+    real_connect_ex = socket.socket.connect_ex
+
+    def check(address: Any) -> None:
+        # A string or bytes address is a Unix socket path: local by definition.
+        if isinstance(address, tuple) and str(address[0]) not in LOCAL_HOSTS:
+            msg = f"tests may only connect to localhost, not {address[0]!r}"
+            raise NetworkBlockedError(msg)
+
+    def connect(self: socket.socket, address: Any) -> None:
+        check(address)
+        real_connect(self, address)
+
+    def connect_ex(self: socket.socket, address: Any) -> int:
+        check(address)
+        return real_connect_ex(self, address)
+
+    monkeypatch.setattr(socket.socket, "connect", connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", connect_ex)
+
 
 PROJECT_NUMBER = "123456789"
 OWNER = "owner@example.test"
@@ -59,9 +96,33 @@ def repo() -> InMemorySettingsRepository:
     return InMemorySettingsRepository()
 
 
+class FakeJobStarter:
+    def __init__(self) -> None:
+        self.calls = 0
+        self.fail = False
+
+    def start(self) -> None:
+        self.calls += 1
+        if self.fail:
+            raise JobStartError("HTTP 500")
+
+
+@pytest.fixture
+def runs_repo() -> InMemoryRunRepository:
+    return InMemoryRunRepository()
+
+
+@pytest.fixture
+def job_starter() -> FakeJobStarter:
+    return FakeJobStarter()
+
+
 @pytest.fixture
 def make_client(
-    key_provider: KeyProvider, repo: InMemorySettingsRepository
+    key_provider: KeyProvider,
+    repo: InMemorySettingsRepository,
+    runs_repo: InMemoryRunRepository,
+    job_starter: FakeJobStarter,
 ) -> Callable[..., TestClient]:
     def make(**overrides: Any) -> TestClient:
         values: dict[str, Any] = {
@@ -70,7 +131,13 @@ def make_client(
             "project_number": PROJECT_NUMBER,
         }
         values.update(overrides)
-        app = create_app(Settings(**values), key_provider=key_provider, settings_repo=repo)
+        app = create_app(
+            Settings(**values),
+            key_provider=key_provider,
+            settings_repo=repo,
+            runs_repo=runs_repo,
+            job_starter=job_starter,
+        )
         return TestClient(app, base_url=f"https://{HOST}", follow_redirects=False)
 
     return make

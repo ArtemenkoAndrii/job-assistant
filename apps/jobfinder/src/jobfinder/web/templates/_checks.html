@@ -1,0 +1,19 @@
+<section id="checks" aria-labelledby="checks-heading" class="checks"
+  {%- if polling %} hx-get="/checks" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
+  <h2 id="checks-heading">System checks</h2>
+  <div class="check-list">
+    {% for check in checks %}
+    <div class="check">
+      <h3>{{ check.title }}</h3>
+      <p>{{ check.description }}</p>
+      <form method="post" action="/checks/{{ 'a1' if check.kind == 'a1_check' else 'email' }}"
+        hx-post="/checks/{{ 'a1' if check.kind == 'a1_check' else 'email' }}" hx-target="#checks" hx-swap="outerHTML">
+        <button type="submit" class="button"{% if check.busy %} disabled{% endif %}>{{ check.button }}</button>
+      </form>
+      <p class="status" role="status" aria-live="polite">
+        {%- if check.symbol %}<span aria-hidden="true">{{ check.symbol }}</span> {% endif %}{{ check.status_text }}
+      </p>
+    </div>
+    {% endfor %}
+  </div>
+</section>

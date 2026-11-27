@@ -12,6 +12,10 @@ class SettingsRepository(Protocol):
         """
         ...
 
+    def notification_email(self) -> str | None:
+        """The notification email from `settings/owner`, or None if there is no record yet."""
+        ...
+
 
 class InMemorySettingsRepository:
     """For tests and `dev` runs."""
@@ -26,6 +30,10 @@ class InMemorySettingsRepository:
                 return False
             self.owner = {"notification_email": email}
             return True
+
+    def notification_email(self) -> str | None:
+        with self._lock:
+            return None if self.owner is None else self.owner.get("notification_email")
 
 
 class FirestoreSettingsRepository:
@@ -47,3 +55,12 @@ class FirestoreSettingsRepository:
         except AlreadyExists:
             return False
         return True
+
+    def notification_email(self) -> str | None:
+        from google.cloud import firestore
+
+        if self._client is None:
+            self._client = firestore.Client()
+        data = self._client.collection("settings").document("owner").get().to_dict() or {}
+        value = data.get("notification_email")
+        return str(value) if value else None
