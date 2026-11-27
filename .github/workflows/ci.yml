@@ -66,6 +66,6 @@ jobs:
         run: |
           docker run --rm jobfinder:ci python -m jobfinder.worker
           docker run -d --name web -p 8080:8080 jobfinder:ci
-          for i in $(seq 1 20); do curl -fsS http://localhost:8080/healthz && break; sleep 1; done
-          curl -fsS http://localhost:8080/healthz
+          for i in $(seq 1 20); do curl -fsS http://localhost:8080/health && break; sleep 1; done
+          curl -fsS http://localhost:8080/health
           docker rm -f web

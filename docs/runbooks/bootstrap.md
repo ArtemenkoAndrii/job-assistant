@@ -144,15 +144,15 @@ gh run list --workflow deploy.yml --limit 1
 gh run rerun <run-id>
 ```
 
-A re-run keeps the `push` event and the `main` ref, so WIF accepts `deployer`. The run builds and pushes the image, applies `infra/app` with the image digest, and waits until the new revision is Ready (Cloud Run's startup probe on `/healthz`). It does not call `/healthz` itself: the service is behind IAP.
+A re-run keeps the `push` event and the `main` ref, so WIF accepts `deployer`. The run builds and pushes the image, applies `infra/app` with the image digest, and waits until the new revision is Ready (Cloud Run's startup probe on `/health`). It does not call `/health` itself: the service is behind IAP.
 
 ### 9. Check by hand
 
-Open the service URL (`gcloud run services describe jobfinder-web --region us-central1 --format='value(status.url)'`) at `/healthz` in a browser signed in as the owner. Expected: `{"status":"ok","version":"…"}`. A different Google account, or none, must be stopped by IAP.
+Open the service URL (`gcloud run services describe jobfinder-web --region us-central1 --format='value(status.url)'`) at `/health` in a browser signed in as the owner. Expected: `{"status":"ok","version":"…"}`. A different Google account, or none, must be stopped by IAP.
 
 ## Measurements (AC15, AC16, AC19)
 
-- **Cold start:** wait until the service has had no request for 15 minutes (it scales to zero), then open `/healthz` once. Read the time from *Cloud Run → jobfinder-web → Metrics → Container startup latency* and from the request log (`httpRequest.latency`). Target ≤ 10 s (NFR-A1).
+- **Cold start:** wait until the service has had no request for 15 minutes (it scales to zero), then open `/health` once. Read the time from *Cloud Run → jobfinder-web → Metrics → Container startup latency* and from the request log (`httpRequest.latency`). Target ≤ 10 s (NFR-A1).
 - **Image size:** `gcloud artifacts docker images list us-central1-docker.pkg.dev/job-finder-<suffix>/jobfinder --include-tags --format='table(package,version,metadata.imageSizeBytes)'`.
 - **Worker:** `gcloud run jobs execute jobfinder-worker --region us-central1 --wait` exits 0; after two hours the execution list shows one per hour at minute 30, all succeeded.
 

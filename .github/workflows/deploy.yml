@@ -1,7 +1,7 @@
 # Builds the image and applies the app layer on every push to main that changes the app or infra/app
 # (ADR-0009). Runs as `deployer`; WIF accepts that account only for this file, on main, on a push
-# event. The service is behind IAP, so the workflow makes no network call to /healthz: it waits until
-# the new revision is Ready, which Cloud Run only reports after the startup probe on /healthz passes.
+# event. The service is behind IAP, so the workflow makes no network call to /health: it waits until
+# the new revision is Ready, which Cloud Run only reports after the startup probe on /health passes.
 name: deploy
 
 on:

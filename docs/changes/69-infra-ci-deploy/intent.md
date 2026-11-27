@@ -15,14 +15,14 @@ The architecture and ADR-0006 to ADR-0009 describe where the product runs and ho
 
 - The owner follows a runbook once (project, billing, Firebase, platform apply, secrets, GitHub variables), and the platform layer is applied from Cloud Shell.
 - After that, a merge to `main` that changes the app builds the image and CI applies the app layer through WIF, with no keys and no secrets in GitHub. `app-plan.yml` plans the app layer on PRs, and the weekly `drift.yml` checks it for drift.
-- The deployed `jobfinder-web` answers `/healthz`. The service is behind IAP from the first deploy, like the whole service (ADR-0008); the IAP OAuth client is a runbook step before it. The app-side JWT check comes in #70. `deploy.yml` does not call `/healthz` over the network: it waits until the new revision is Ready (Cloud Run's startup probe on `/healthz`). The owner opens `/healthz` through IAP by hand.
+- The deployed `jobfinder-web` answers `/health`. The service is behind IAP from the first deploy, like the whole service (ADR-0008); the IAP OAuth client is a runbook step before it. The app-side JWT check comes in #70. `deploy.yml` does not call `/health` over the network: it waits until the new revision is Ready (Cloud Run's startup probe on `/health`). The owner opens `/health` through IAP by hand.
 - The platform layer creates everything ADR-0009 lists now (Firestore, files bucket, secret containers, IAM, WIF, budget). Secret values are added when a slice needs them.
 - Cold start after scale to zero and the image size are measured from Cloud Run metrics and request logs and recorded, so NFR-A1 (cold start ≤ 10 s) and the hosting budget are checked against reality, not estimates.
 
 ## Affected users and systems
 
 - Users: the owner, who bootstraps and operates the deployment. No end-user screen changes.
-- Systems: GCP project `job-finder`, `infra/platform`, `infra/app`, GitHub Actions workflows, Artifact Registry, Cloud Run service and job, Cloud Scheduler, WIF, IAP, Firestore, the files bucket, Secret Manager, `apps/jobfinder` (minimal `/healthz` and entry points only).
+- Systems: GCP project `job-finder`, `infra/platform`, `infra/app`, GitHub Actions workflows, Artifact Registry, Cloud Run service and job, Cloud Scheduler, WIF, IAP, Firestore, the files bucket, Secret Manager, `apps/jobfinder` (minimal `/health` and entry points only).
 - Use cases: none directly; this is the foundation for all of them.
 
 ## Constraints

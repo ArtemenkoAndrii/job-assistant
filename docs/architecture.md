@@ -82,7 +82,7 @@ flowchart TB
 
 | Container | Responsibility | Key rules |
 |---|---|---|
-| **jobfinder-web** (Cloud Run service) | All pages and API (UC-01–05, 10–15); resume a blocked run, re-enable a board (UC-08). Interactive LLM steps outside the run queue: extraction preview (UC-03), regenerate answers (UC-11 A1), regenerate and re-review a resume (UC-12) | IAP in front; the app verifies the IAP JWT and the owner email on every route except `/healthz` (ADR-0008). CSRF by `Origin` check. Scales to zero; cold start ≤ 10 s (NFR-A1) |
+| **jobfinder-web** (Cloud Run service) | All pages and API (UC-01–05, 10–15); resume a blocked run, re-enable a board (UC-08). Interactive LLM steps outside the run queue: extraction preview (UC-03), regenerate answers (UC-11 A1), regenerate and re-review a resume (UC-12) | IAP in front; the app verifies the IAP JWT and the owner email on every route except `/health` (ADR-0008). CSRF by `Origin` check. Scales to zero; cold start ≤ 10 s (NFR-A1) |
 | **jobfinder-worker** (Cloud Run job) | Executes one queued run end to end (UC-07), then notifies | Takes the run lease, renews it, stops if it is lost; one run per execution, so every run fits the 2 h timeout (ADR-0007). The only workload with the A-1 token |
 | **Cloud Scheduler** | Starts the worker every hour at :30 | The worker decides which profiles are due (NFR-R1). A blocked run waits for its next slot, so there is no retry loop (NFR-A2) |
 | **Run queue** | No separate service: `runs` documents with status `queued` plus the lease document `locks/worker` | Oldest queued run first; no duplicate queueing per profile; the kill switch drops queued runs (UC-14) |

@@ -7,8 +7,8 @@ from jobfinder.web.app import app
 from jobfinder.worker.__main__ import main as worker_main
 
 
-def test_healthz() -> None:
-    response = TestClient(app).get("/healthz")
+def test_health() -> None:
+    response = TestClient(app).get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "version": __version__}
 
