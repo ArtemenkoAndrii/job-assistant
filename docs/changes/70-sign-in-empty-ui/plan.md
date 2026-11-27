@@ -74,9 +74,9 @@ Commands pasted into the PR: `scripts/build.sh`, `scripts/lint.sh`, `scripts/tes
 | AC9, AC10 | `test_settings_repo.py` |
 | AC11 | `caplog` and body assertions in `test_auth.py` |
 | AC12, AC13, AC14 | `test_pages.py`: template and stylesheet structure |
-| AC15, AC16 | Manual after deploy: screenshots at 360 px and 1280 px; sign-in on phone and laptop; other account refused (PR) |
-| AC17 | `terraform validate` in `scripts/lint.sh` and CI |
-| AC18 | Cloud Run `container/startup_latencies` after 15 min idle and image size, recorded here after deploy |
+| AC15, AC16 | **Confirmed by the owner on 2026-11-27** after the deploy of #78 ([run](https://github.com/ArtemenkoAndrii/job-assistant/actions/runs/46037085538)): sign-in on a phone and a laptop, the three pages usable, another account refused. No screenshots recorded. |
+| AC17 | `terraform validate` in CI on #78 (green); the deploy applied the env vars and the secret reference |
+| AC18 | **Accepted by the owner on 2026-11-27 without a measurement.** Not measured after this slice; baseline from #69: 4.0 s cold start, 58 MB image. The Firestore client is imported lazily, so `/health` and startup do not load it. |
 
 ## Divergence log
 
@@ -90,3 +90,4 @@ Commands pasted into the PR: `scripts/build.sh`, `scripts/lint.sh`, `scripts/tes
 - **PR keyword (owner decision):** the main PR says `Refs #70`; a follow-up Proof PR with the post-deploy evidence (AC15, AC16, AC18) says `Closes #70`, as in #69. Steps 10 and 11 changed accordingly.
 - **`KeyProvider` keeps known keys when a refresh fails (owner decision).** A failed fetch no longer clears the cache, so a short outage of `www.gstatic.com` after the TTL does not lock the owner out. Fail closed still holds: an unknown `kid`, or no keys at all, is 401. Retries wait at least 60 s. Test: `test_failed_refresh_keeps_known_keys_and_stays_fail_closed`.
 - **First-fetch bug fixed on the way:** the cache used `0.0` as its "loaded at" time, so on a machine whose monotonic clock was under 60 s the first fetch would not have happened. It now tracks `_expires_at` and `_next_attempt`; `test_keys_load_on_a_freshly_started_machine` covers it.
+- AC15, AC16 confirmed and AC18 accepted by the owner without screenshots or a measurement (see Proof).
