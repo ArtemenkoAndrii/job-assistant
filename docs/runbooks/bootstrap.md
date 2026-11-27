@@ -42,7 +42,7 @@ terraform plan
 terraform apply
 ```
 
-If the first apply fails because an API was not enabled yet, wait a minute and apply again. The budget API is called with your user credentials; the provider block already sets `user_project_override` and `billing_project`.
+If the first apply fails because an API was not enabled yet, or a just-created custom role "does not exist in the resource's hierarchy" (IAM changes take a minute or two to propagate), wait two minutes and apply again; Terraform only creates what is missing. The six Firestore TTL fields take several minutes each: do not interrupt. The budget API is called with your user credentials; the provider block already sets `user_project_override` and `billing_project`.
 
 Then move the state into the bucket Terraform just created, and re-initialise:
 
@@ -63,7 +63,7 @@ Keep the outputs for step 6: `terraform output`.
 
 IAP is switched on for `jobfinder-web` by the app layer, so the OAuth client must exist first.
 
-1. Console → *Google Auth Platform* (OAuth consent screen): audience **External**, publishing status **In production** (IAP asks only for basic profile and email, which need no verification; "Testing" would sign you out often).
+1. Console → *Google Auth Platform* (OAuth consent screen): app name `Job Finder`, your email as support contact, audience **External**. Leave the publishing status **Testing** and add your Google account under *Audience → Test users*. *Publish app* (In production) needs a homepage and privacy-policy URL on a verified domain, which a one-user app does not need; IAP's browser session does not use the 7-day refresh tokens that Testing limits.
 2. *Clients* → *Create client* → type *Web application*. Add the authorised redirect URI `https://iap.googleapis.com/v1/oauth/clientIds/<CLIENT_ID>:handleRedirect` (edit the client after creation, when the ID is known).
 3. Attach the client to IAP at project level. The client secret stays with IAP: it never goes into Terraform, state or the repo.
 

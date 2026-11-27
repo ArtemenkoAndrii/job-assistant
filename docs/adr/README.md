@@ -15,3 +15,4 @@ How we record decisions: [ADR-0001](0001-record-architecture-decisions.md). New 
 | [0009](0009-infrastructure-as-code.md) | Infrastructure as code | Accepted | 2026-11-25 |
 | [0010](0010-email-delivery.md) | Notifications and email delivery | Accepted | 2026-11-25 |
 | [0011](0011-browser-automation-policy.md) | Browser automation policy | Accepted | 2026-11-25 |
+| [0012](0012-deployer-cloud-run-iam.md) | Deployer's Cloud Run IAM-policy right at project level | Accepted | 2026-11-27 |
