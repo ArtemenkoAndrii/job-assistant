@@ -30,11 +30,11 @@ resource "google_cloud_run_v2_service" "web" {
         startup_cpu_boost = true
       }
 
-      # A revision becomes Ready only when /healthz answers; deploy.yml waits for that and makes no
+      # A revision becomes Ready only when /health answers; deploy.yml waits for that and makes no
       # network call itself (the service is behind IAP).
       startup_probe {
         http_get {
-          path = "/healthz"
+          path = "/health"
         }
         initial_delay_seconds = 0
         period_seconds        = 2

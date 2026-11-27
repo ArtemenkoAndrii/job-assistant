@@ -7,7 +7,8 @@ from jobfinder import __version__
 app = FastAPI(title="Job Finder", version=__version__, docs_url=None, redoc_url=None)
 
 
-@app.get("/healthz")
-def healthz() -> dict[str, str]:
+# Not /healthz: Cloud Run reserves paths ending in "z" (Cloud Run known issues).
+@app.get("/health")
+def health() -> dict[str, str]:
     """Liveness check for the hosting platform. Carries no data."""
     return {"status": "ok", "version": __version__}
