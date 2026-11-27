@@ -14,17 +14,22 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from jobfinder import __version__
 from jobfinder.config import Settings, check_startup, get_settings
+from jobfinder.storage.runs_repo import FirestoreRunRepository, InMemoryRunRepository, RunRepository
 from jobfinder.storage.settings_repo import (
     FirestoreSettingsRepository,
     InMemorySettingsRepository,
     SettingsRepository,
 )
 from jobfinder.web.auth import Identity, KeyProvider, ensure_owner_record, require_owner
+from jobfinder.web.checks import checks_context
+from jobfinder.web.checks import router as checks_router
 from jobfinder.web.csrf import check_origin
+from jobfinder.web.jobs import CloudRunJobStarter, JobStarter, NoopJobStarter
 
 WEB_DIR = Path(__file__).parent
 TEMPLATES = Jinja2Templates(directory=WEB_DIR / "templates")
 STYLESHEET = WEB_DIR / "static" / "app.css"
+HTMX = WEB_DIR / "static" / "htmx.min.js"
 
 NAV = (
     ("profiles", "Profiles", "/profiles"),
@@ -39,14 +44,19 @@ def authenticate(request: Request) -> Identity:
     return identity
 
 
-def _page(request: Request, template: str, current: str) -> HTMLResponse:
-    return TEMPLATES.TemplateResponse(request, template, {"nav": NAV, "current": current})
+def _page(
+    request: Request, template: str, current: str, extra: dict[str, object] | None = None
+) -> HTMLResponse:
+    context = {"nav": NAV, "current": current, **(extra or {})}
+    return TEMPLATES.TemplateResponse(request, template, context)
 
 
 def create_app(
     settings: Settings | None = None,
     key_provider: KeyProvider | None = None,
     settings_repo: SettingsRepository | None = None,
+    runs_repo: RunRepository | None = None,
+    job_starter: JobStarter | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     check_startup(settings)
@@ -59,6 +69,15 @@ def create_app(
     app.state.settings_repo = settings_repo or (
         InMemorySettingsRepository() if settings.is_dev else FirestoreSettingsRepository()
     )
+    app.state.runs = runs_repo or (
+        InMemoryRunRepository() if settings.is_dev else FirestoreRunRepository()
+    )
+    app.state.job_starter = job_starter or (
+        NoopJobStarter()
+        if settings.is_dev
+        else CloudRunJobStarter(settings.project_number, settings.region)
+    )
+    app.state.templates = TEMPLATES
     app.state.owner_ready = False
 
     @app.exception_handler(StarletteHTTPException)
@@ -87,7 +106,7 @@ def create_app(
 
     @protected.get("/settings", response_class=HTMLResponse)
     def settings_page(request: Request) -> HTMLResponse:
-        return _page(request, "settings.html", "settings")
+        return _page(request, "settings.html", "settings", checks_context(request.app.state.runs))
 
     @protected.get("/runs", response_class=HTMLResponse)
     def runs(request: Request) -> HTMLResponse:
@@ -98,6 +117,11 @@ def create_app(
     def stylesheet() -> FileResponse:
         return FileResponse(STYLESHEET, media_type="text/css")
 
+    @protected.get("/static/htmx.min.js", include_in_schema=False)
+    def htmx_script() -> FileResponse:
+        return FileResponse(HTMX, media_type="text/javascript")
+
+    protected.include_router(checks_router)
     app.include_router(protected)
     return app
 

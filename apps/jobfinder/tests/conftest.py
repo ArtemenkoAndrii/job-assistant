@@ -17,9 +17,11 @@ from fastapi.testclient import TestClient
 from jwt.algorithms import ECAlgorithm
 
 from jobfinder.config import Settings
+from jobfinder.storage.runs_repo import InMemoryRunRepository
 from jobfinder.storage.settings_repo import InMemorySettingsRepository
 from jobfinder.web.app import create_app
 from jobfinder.web.auth import IAP_HEADER, IAP_ISSUER, KeyProvider
+from jobfinder.web.jobs import JobStartError
 
 LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 
@@ -94,9 +96,33 @@ def repo() -> InMemorySettingsRepository:
     return InMemorySettingsRepository()
 
 
+class FakeJobStarter:
+    def __init__(self) -> None:
+        self.calls = 0
+        self.fail = False
+
+    def start(self) -> None:
+        self.calls += 1
+        if self.fail:
+            raise JobStartError("HTTP 500")
+
+
+@pytest.fixture
+def runs_repo() -> InMemoryRunRepository:
+    return InMemoryRunRepository()
+
+
+@pytest.fixture
+def job_starter() -> FakeJobStarter:
+    return FakeJobStarter()
+
+
 @pytest.fixture
 def make_client(
-    key_provider: KeyProvider, repo: InMemorySettingsRepository
+    key_provider: KeyProvider,
+    repo: InMemorySettingsRepository,
+    runs_repo: InMemoryRunRepository,
+    job_starter: FakeJobStarter,
 ) -> Callable[..., TestClient]:
     def make(**overrides: Any) -> TestClient:
         values: dict[str, Any] = {
@@ -105,7 +131,13 @@ def make_client(
             "project_number": PROJECT_NUMBER,
         }
         values.update(overrides)
-        app = create_app(Settings(**values), key_provider=key_provider, settings_repo=repo)
+        app = create_app(
+            Settings(**values),
+            key_provider=key_provider,
+            settings_repo=repo,
+            runs_repo=runs_repo,
+            job_starter=job_starter,
+        )
         return TestClient(app, base_url=f"https://{HOST}", follow_redirects=False)
 
     return make

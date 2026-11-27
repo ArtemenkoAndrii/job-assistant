@@ -29,7 +29,7 @@ def test_page_structure(client: TestClient, owner_headers: Any, path: str) -> No
     assert html.count('aria-current="page"') == 1
     assert f'href="{path}" aria-current="page"' in html
     assert 'aria-label="Main"' in html
-    assert "<script" not in html
+    assert re.findall(r"<script[^>]*>", html) == ['<script src="/static/htmx.min.js" defer>']
 
 
 def test_links_have_text_labels(client: TestClient, owner_headers: Any) -> None:
