@@ -149,4 +149,5 @@ Commands pasted into the PR: `scripts/build.sh`, `scripts/lint.sh`, `scripts/tes
 - `deployer` was denied `run.services.setIamPolicy` and `run.jobs.setIamPolicy`: Cloud Run does not support resource-name IAM conditions. The custom role is now granted at project level without a condition ([ADR-0012](../../adr/0012-deployer-cloud-run-iam.md)).
 - The OAuth app stays in **Testing** with the owner as test user: *Publish app* needs a homepage and privacy policy on a verified domain. Deviates from ADR-0008's "In production"; runbook updated.
 - The health route is `/health`, not `/healthz`: Cloud Run's front end reserves paths ending in `z` and answered a Google 404 before the request reached the container (Cloud Run known issues). ADR-0008 names `/healthz` as the route without the owner check; that route is now `/health`, same rule.
+- The first manual `drift.yml` run failed on an output only: `latest_ready_revision` is recorded at apply time, before the new revision is Ready, and `-detailed-exitcode` counts output changes. The output is removed (nothing used it; `deploy.yml` waits with `gcloud`).
 
