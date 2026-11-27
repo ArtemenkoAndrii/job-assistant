@@ -11,12 +11,13 @@
 
 ## Related ADRs
 
-- [ADR-0008](../../adr/0008-user-authentication.md): IAP in front; the app verifies the IAP JWT (ES256, issuer, audience, expiry) and the owner email on every route except `/health`; fail closed; Origin check on state-changing methods; `dev` mode rules; first sign-in creates `settings/owner`. This spec implements §2–§6 of its decision, except that the Origin check compares with the request's own host instead of a configured list (see *Flagged concerns* 2).
+- [ADR-0008](../../adr/0008-user-authentication.md): IAP in front; the app verifies the IAP JWT (ES256, issuer, audience, expiry) and the owner email on every route except `/health`; fail closed; Origin check on state-changing methods; `dev` mode rules; first sign-in creates `settings/owner`. This spec implements §2–§6 of its decision, except that the Origin check compares with the request's own host instead of a configured list.
+- [ADR-0013](../../adr/0013-origin-check.md) (Proposed, supersedes ADR-0008 §5 only): the Origin rule of R4. The spec relies on it; it must be Accepted before this change merges.
 - [ADR-0007](../../adr/0007-data-storage.md): `settings/owner` lives in Firestore; no TTL (kept until deleted).
 - [ADR-0005](../../adr/0005-application-stack.md): FastAPI, server-rendered Jinja2, no front-end build step.
 - [ADR-0006](../../adr/0006-hosting.md): Cloud Run service `jobfinder-web` runs as service account `web`, which already reads `owner-email` and uses Firestore.
 
-One point differs from the ADR's wording (the Origin rule) and is listed under *Flagged concerns* with a proposed resolution.
+The Origin rule differs from ADR-0008 §5 and is covered by ADR-0013 (see *Flagged concerns* 2).
 
 ## Requirements
 
@@ -72,7 +73,7 @@ One point differs from the ADR's wording (the Origin rule) and is listed under *
 **Flow.** Request → Origin check (non-safe methods) → auth dependency → owner bootstrap → handler. `/health` is the only route registered without the dependencies; the dependencies are attached to the router(s) that hold all other routes, so a new route is protected by default. The route inventory test (AC8) fails if one is not.
 
 **Components (`jobfinder.web`, `jobfinder.storage`, `jobfinder.config`).**
-- Settings: `environment` (default production), `owner_email`, `project_number`, `allowed_origins`. The startup guard for `dev` plus `K_SERVICE` is in the application factory.
+- Settings: `environment` (default production), `owner_email`, `project_number`. The startup guard for `dev` plus `K_SERVICE` is in the application factory.
 - Auth: verifies the token and returns the verified identity. IAP public keys are fetched lazily on first use, cached in process with a time limit, with a short timeout; any failure to obtain keys is a 401 (fail closed). A `kid` not in the cache triggers at most one refresh.
 - Settings repository: a small interface with an in-memory fake and a Firestore implementation; `ensure_owner(email)` creates `settings/owner` only if absent (create-if-absent semantics). The app remembers in process that it has succeeded, so Firestore is touched once per instance, not once per request.
 - Origin check: a dependency on all non-safe methods; it compares `Origin` with `"https://" + Host` of the request. The browser sets `Origin` and a cross-site page cannot make it equal to the service's own host, so no URL list is needed and both Cloud Run URLs work.
@@ -114,7 +115,7 @@ Screens: **Profiles** (landing), **Settings**, **Runs**, plus generic 401/403 pa
 ## Flagged concerns
 
 1. **Default environment.** ADR-0008 says the default when `JOBFINDER_ENVIRONMENT` is unset is production; the current `config.py` defaults to `dev`. This spec follows the ADR (R8), so the default changes in code, and local runs need `JOBFINDER_ENVIRONMENT=dev` set explicitly. *Agreed by the owner.*
-2. **Origin rule vs ADR-0008 §5.** ADR-0008 says `Origin` must be in a configured list of the service's URLs; this spec uses `Origin == "https://" + Host` (R4), because the owner uses the hash URL and a deterministic-only list would refuse it. The behaviour is equal or stricter in intent, but the ADR text differs and a spec must not contradict an accepted ADR. **Proposed resolution:** the owner decides whether to amend ADR-0008 §5 (a short superseding ADR or an accepted edit) in this PR before `plan.md` is approved; the spec is accepted on that understanding. `/healthz` in the ADR is left as is: the rename to `/health` is in #69's Divergence log.
+2. **Origin rule vs ADR-0008 §5.** ADR-0008 says `Origin` must be in a configured list of the service's URLs; this spec uses `Origin == "https://" + Host` (R4), because the owner uses the hash URL and a deterministic-only list would refuse it. *Resolved by the owner:* [ADR-0013](../../adr/0013-origin-check.md), in this PR, supersedes only ADR-0008 §5 with this rule; it stays Proposed until the owner accepts it, and ADR-0008 itself is not edited. `/healthz` in ADR-0008 is left as is: the rename to `/health` is in #69's Divergence log.
 3. **Sign out in dev.** `/_gcp_iap/clear_login_cookie` exists only behind IAP; in local `dev` mode the link leads to a 404. *Accepted by the owner.*
 
 ## Out of scope

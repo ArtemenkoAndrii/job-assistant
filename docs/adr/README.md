@@ -16,3 +16,4 @@ How we record decisions: [ADR-0001](0001-record-architecture-decisions.md). New 
 | [0010](0010-email-delivery.md) | Notifications and email delivery | Accepted | 2026-11-25 |
 | [0011](0011-browser-automation-policy.md) | Browser automation policy | Accepted | 2026-11-25 |
 | [0012](0012-deployer-cloud-run-iam.md) | Deployer's Cloud Run IAM-policy right at project level | Accepted | 2026-11-27 |
+| [0013](0013-origin-check.md) | Origin check against the request's own host (supersedes ADR-0008 §5 only) | Proposed | 2026-11-27 |
