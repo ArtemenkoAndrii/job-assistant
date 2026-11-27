@@ -41,31 +41,37 @@ class KeyProvider:
     def __init__(self, fetch: Callable[[], dict[str, Any]] | None = None) -> None:
         self._fetch = fetch or _fetch_iap_keys
         self._keys: dict[str, Any] = {}
-        self._loaded_at = 0.0
+        self._expires_at = 0.0  # keys older than this are stale, but are kept if a refresh fails
+        self._next_attempt = (
+            0.0  # earliest time of the next fetch, so a failing fetch is not hammered
+        )
         self._lock = threading.Lock()
 
     def get(self, kid: str) -> Any | None:
         with self._lock:
             now = time.monotonic()
-            expired = now - self._loaded_at > KEY_TTL_SECONDS
-            if kid in self._keys and not expired:
+            if kid in self._keys and now < self._expires_at:
                 return self._keys[kid]
-            if expired or now - self._loaded_at > MIN_REFRESH_SECONDS:
+            if now >= self._next_attempt:
                 self._load(now)
             return self._keys.get(kid)
 
     def _load(self, now: float) -> None:
-        self._loaded_at = now  # also rate-limits retries after a failed fetch
+        self._next_attempt = now + MIN_REFRESH_SECONDS
         try:
             document = self._fetch()
-            self._keys = {
+            keys = {
                 key["kid"]: ECAlgorithm.from_jwk(json.dumps(key))
                 for key in document["keys"]
                 if key.get("kty") == "EC"
             }
         except Exception:
+            # Keep the previously loaded keys: a short outage must not lock the owner out. With no
+            # keys at all every token is refused (fail closed).
             log.warning("could not load IAP public keys")
-            self._keys = {}
+            return
+        self._keys = keys
+        self._expires_at = now + KEY_TTL_SECONDS
 
 
 def _fetch_iap_keys() -> dict[str, Any]:

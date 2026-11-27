@@ -44,8 +44,8 @@ ADR-0008 is not edited (ADR-0013 supersedes §5 only).
 7. **Pages and routes**: every route lives on the protected router; the route-inventory test requests each registered route without a token (AC8). Templates and CSS per spec UX: viewport meta, `lang`, `header`/`nav`/`main`, current page marked, Sign out link to `/_gcp_iap/clear_login_cookie`, labels, focus style, 44 px rule for header links, 16 px base text, header wraps at 360 px, bounded centred column on desktop. Template and stylesheet tests (AC12–AC14).
 8. **Infra**: the env vars in `cloud_run_web.tf` (secret through `value_source.secret_key_ref`); `terraform fmt -check` and `init -backend=false && validate` for `infra/app` (AC17).
 9. **Docs**: UC-01 if needed; Divergence log; a one-line note in the app README or `config.py` docstring that local runs need `JOBFINDER_ENVIRONMENT=dev`.
-10. Run `scripts/build.sh`, `scripts/test.sh`, `scripts/lint.sh` and paste the output; run the `verifier` subagent and quote its verdict. Open the PR (`Closes #70`) only on the owner's go-ahead.
-11. After the owner deploys: AC15 and AC16 (screenshots at 360 and 1280 px; sign-in on a phone and a laptop; another account refused) and AC18 (cold start after 15 min idle, image size) are recorded in Proof. The verifier lists them as pending until then.
+10. Run `scripts/build.sh`, `scripts/test.sh`, `scripts/lint.sh` and paste the output; run the `verifier` subagent and quote its verdict. Open the PR with `Refs #70` (not `Closes`) on the owner's go-ahead: AC15, AC16 and AC18 are proven only after deploy.
+11. After the owner deploys: AC15 and AC16 (screenshots at 360 and 1280 px; sign-in on a phone and a laptop; another account refused) and AC18 (cold start after 15 min idle, image size) are recorded in Proof by a follow-up Proof PR that says `Closes #70` (as in #69). The verifier lists them as pending until then.
 
 ## Risks
 
@@ -86,4 +86,7 @@ Commands pasted into the PR: `scripts/build.sh`, `scripts/lint.sh`, `scripts/tes
 - **Dev mode** uses an in-memory settings repository and the stand-in identity `dev@example.test`; production and tests choose the repository through `create_app` arguments.
 - **Header order:** Sign out follows the navigation in the page source (keyboard order); CSS puts it on the first row at 360 px.
 - **`terraform validate`** for `infra/app` could not run in this session (`releases.hashicorp.com` answered 502 during `init`); `terraform fmt` passed in `scripts/lint.sh`. CI runs init and validate (AC17).
-- Tests: 49 (the 401/403 refusal-page cases are one test, not two).
+- Tests: 49 at first, 51 after the KeyProvider change (the 401/403 refusal-page cases are one test, not two).
+- **PR keyword (owner decision):** the main PR says `Refs #70`; a follow-up Proof PR with the post-deploy evidence (AC15, AC16, AC18) says `Closes #70`, as in #69. Steps 10 and 11 changed accordingly.
+- **`KeyProvider` keeps known keys when a refresh fails (owner decision).** A failed fetch no longer clears the cache, so a short outage of `www.gstatic.com` after the TTL does not lock the owner out. Fail closed still holds: an unknown `kid`, or no keys at all, is 401. Retries wait at least 60 s. Test: `test_failed_refresh_keeps_known_keys_and_stays_fail_closed`.
+- **First-fetch bug fixed on the way:** the cache used `0.0` as its "loaded at" time, so on a machine whose monotonic clock was under 60 s the first fetch would not have happened. It now tracks `_expires_at` and `_next_attempt`; `test_keys_load_on_a_freshly_started_machine` covers it.

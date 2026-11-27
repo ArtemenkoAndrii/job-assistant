@@ -114,3 +114,62 @@ def test_responses_and_logs_never_contain_email_or_token(
     for response in responses[:2]:
         assert not any(s in response.text for s in secrets)
     assert not any(s in caplog.text for s in secrets)
+
+
+def test_failed_refresh_keeps_known_keys_and_stays_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    signing_key: ec.EllipticCurvePrivateKey,
+    make_token: Callable[..., str],
+) -> None:
+    import json
+
+    from jwt.algorithms import ECAlgorithm
+
+    from jobfinder.config import Settings
+    from jobfinder.web import auth
+    from jobfinder.web.auth import KEY_TTL_SECONDS, KeyProvider, verify_iap_jwt
+    from tests.conftest import KID, PROJECT_NUMBER
+
+    jwk = json.loads(ECAlgorithm.to_jwk(signing_key.public_key()))
+    jwk["kid"] = KID
+    outage = False
+
+    def fetch() -> dict[str, Any]:
+        if outage:
+            raise OSError("www.gstatic.com unreachable")
+        return {"keys": [jwk]}
+
+    clock = [1000.0]
+    monkeypatch.setattr(auth.time, "monotonic", lambda: clock[0])
+    settings = Settings(owner_email=OWNER, project_number=PROJECT_NUMBER)
+    keys = KeyProvider(fetch=fetch)
+    token = make_token()
+
+    assert verify_iap_jwt(token, keys, settings).email == OWNER  # keys loaded
+
+    clock[0] += KEY_TTL_SECONDS + 1  # TTL expired
+    outage = True  # and the fetch fails
+    assert verify_iap_jwt(token, keys, settings).email == OWNER  # known kid still verifies
+    with pytest.raises(ValueError):  # an unknown kid is still refused
+        verify_iap_jwt(make_token(kid="unknown"), keys, settings)
+
+    # Without any keys (fetch failing from the start) every token is refused.
+    empty = KeyProvider(fetch=fetch)
+    with pytest.raises(ValueError):
+        verify_iap_jwt(token, empty, settings)
+
+
+def test_keys_load_on_a_freshly_started_machine(
+    monkeypatch: pytest.MonkeyPatch,
+    key_provider: Any,
+    make_token: Callable[..., str],
+) -> None:
+    """The monotonic clock may be near zero right after boot; the first fetch must still happen."""
+    from jobfinder.config import Settings
+    from jobfinder.web import auth
+    from jobfinder.web.auth import verify_iap_jwt
+    from tests.conftest import PROJECT_NUMBER
+
+    monkeypatch.setattr(auth.time, "monotonic", lambda: 5.0)
+    settings = Settings(owner_email=OWNER, project_number=PROJECT_NUMBER)
+    assert verify_iap_jwt(make_token(), key_provider, settings).email == OWNER
