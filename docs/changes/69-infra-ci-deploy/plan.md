@@ -76,28 +76,30 @@ Each step is a commit; run `scripts/build.sh`, `scripts/lint.sh`, `scripts/test.
 
 ## Proof
 
-Commands pasted into the PR: `scripts/build.sh`, `scripts/lint.sh`, `scripts/test.sh`.
+Recorded 2026-11-27 after the bootstrap. Identifiers that the repo keeps out (project number, owner email) are omitted.
 
-| Acceptance criterion | Evidence |
-|---|---|
-| AC1 | `ci.yml` run: fmt and validate steps green with no credentials |
-| AC2, AC6 | `gcloud iam workload-identity-pools providers describe` and `gcloud iam service-accounts get-iam-policy deployer` output pasted in the PR (config inspection) |
-| AC3 | `app-plan.yml` run on this PR after bootstrap, or on the first infra PR that follows |
-| AC4 | first scheduled or manually triggered `drift.yml` green; then a manual console edit makes it red, reverted |
-| AC5, AC18 | `deploy.yml` run after the re-run: image digest in the log, apply output, Ready revision |
-| AC7 | `scripts/lint.sh` gitleaks "no leaks found"; screenshot or `gh api` list of Environment variables (names only) |
-| AC8 | `curl -sI https://<service-url>/health` → IAP redirect/401, plus `gcloud run services get-iam-policy` shows only the IAP agent |
-| AC9 | owner opens `/health` through IAP in a browser: JSON status+version |
-| AC10 | `tests/scripts/test_check_infra.py` |
-| AC11 | owner's `terraform plan` in Cloud Shell "No changes" + console check list |
-| AC12 | `gcloud secrets versions list` per secret: empty |
-| AC13 | `gcloud projects get-iam-policy` filtered by the two accounts, plus the bucket IAM policy: neither account has any role on the `platform/` prefix |
-| AC14 | runbook order reviewed in the PR |
-| AC15 | Cloud Run `container/startup_latencies` and request log latency after 15 min idle; **value recorded here**: _to fill_; image size from `docker images` / Artifact Registry: _to fill_ |
-| AC16 | `gcloud run jobs execute jobfinder-worker --wait`, exit 0 |
-| AC17 | the `deploy.yml` run triggered by the merge: green with "bootstrap not done" |
-| AC19 | Cloud Run job execution list after 2 h: executions at :30, all succeeded |
-| AC20 | `terraform version` and `init -backend=false && validate` output from the rebuilt dev container |
+| Acceptance criterion | Evidence | Result |
+|---|---|---|
+| AC1 | `ci.yml` on #72: `terraform fmt -check`, `init -backend=false`, `validate` for both layers, no credentials | ✓ |
+| AC2 | `gcloud iam workload-identity-pools providers describe github-actions`: condition `assertion.repository_owner_id == '19709306' && assertion.repository_id == '1464306064'` | ✓ (config inspection) |
+| AC3 | `app-plan` on #75 ([run](https://github.com/ArtemenkoAndrii/job-assistant/actions/runs/46024039140)) authenticated as `app-plan` and planned one change (startup probe path); project ID masked as `***` | ✓ |
+| AC4 | `drift` by hand after #76 ([run](https://github.com/ArtemenkoAndrii/job-assistant/actions/runs/46025813954)): "No changes". The run before #76 ([run](https://github.com/ArtemenkoAndrii/job-assistant/actions/runs/46025221978)) failed on a real difference (a stale output), which also shows the red path | ✓ |
+| AC5 | `deploy` [run](https://github.com/ArtemenkoAndrii/job-assistant/actions/runs/45863025991) attempt 3: image pushed by digest, `Apply complete`, revision `jobfinder-web-00002` Ready; later deploys of #75 and #76 green | ✓ |
+| AC6 | `gcloud iam service-accounts get-iam-policy deployer`: only `principalSet://…/attribute.deploy_trigger/push:ArtemenkoAndrii/job-assistant/.github/workflows/deploy.yml@refs/heads/main` | ✓ (config inspection) |
+| AC7 | gitleaks in CI on every PR: no leaks; Environment variables hold identifiers only, no secrets; project ID masked in logs | ✓ |
+| AC8 | anonymous `curl -sI …/health` → `302` to `accounts.google.com`, `x-goog-iap-generated-response: true`; `run.invoker` on `jobfinder-web` only for the IAP service agent | ✓ |
+| AC9 | owner opened `/health` through IAP: `{"status":"ok","version":"0.1.0"}` | ✓ |
+| AC10 | `tests/scripts/test_check_infra.py` | ✓ |
+| AC11 | owner applied `infra/platform` (78 resources), migrated the state to the bucket, re-applied after #74 (1 added, 2 destroyed, as planned) | ✓ |
+| AC12 | `gcloud secrets versions list`: `a1-client-id`, `a1-client-secret`, `openai-api-key`, `email-sender` have 0 versions; `owner-email` holds the owner's value (runbook step 5) | ✓ |
+| AC13 | `gcloud projects get-iam-policy` filtered: `deployer` = `deployerRunIam`, `cloudscheduler.admin`, `datastore.indexAdmin`, `run.developer`; `app-plan` = `cloudscheduler.viewer`, `iam.serviceAccountViewer`, `run.viewer`. No project IAM, data, secret or billing role | ✓ |
+| AC14 | runbook order: IAP client (step 4) before the first deploy re-run (step 8) | ✓ |
+| AC15 | after 15 min idle, the first `/health` took **4.04 s** (request log `httpRequest.latency`; warm: 3 ms). Image **58 MB** (Artifact Registry `imageSizeBytes` 57,980,434) | ✓ (≤ 10 s) |
+| AC16 | `gcloud run jobs execute jobfinder-worker --wait`: "successfully completed" | ✓ |
+| AC17 | `deploy` [run](https://github.com/ArtemenkoAndrii/job-assistant/actions/runs/45857434820) triggered by merging #72: green, notice "bootstrap not done" | ✓ |
+| AC18 | the re-run of the latest `deploy` run kept `push` on `main`; WIF accepted `deployer` (attempts 2 and 3 of [run](https://github.com/ArtemenkoAndrii/job-assistant/actions/runs/45863025991)) | ✓ |
+| AC19 | **accepted by the owner on 2026-11-27 without the two-hour observation.** Evidence so far: the Scheduler job exists and calls the job as `scheduler`; its attempts before 16:13 UTC+1 failed with `code=7` because the invoker binding was only applied then | accepted |
+| AC20 | Claude Code in the rebuilt dev container: `terraform version` 1.17.2, `init -backend=false` and `validate` pass for both layers | ✓ |
 
 ## Divergence log
 
@@ -150,4 +152,4 @@ Commands pasted into the PR: `scripts/build.sh`, `scripts/lint.sh`, `scripts/tes
 - The OAuth app stays in **Testing** with the owner as test user: *Publish app* needs a homepage and privacy policy on a verified domain. Deviates from ADR-0008's "In production"; runbook updated.
 - The health route is `/health`, not `/healthz`: Cloud Run's front end reserves paths ending in `z` and answered a Google 404 before the request reached the container (Cloud Run known issues). ADR-0008 names `/healthz` as the route without the owner check; that route is now `/health`, same rule.
 - The first manual `drift.yml` run failed on an output only: `latest_ready_revision` is recorded at apply time, before the new revision is Ready, and `-detailed-exitcode` counts output changes. The output is removed (nothing used it; `deploy.yml` waits with `gcloud`).
-
+- AC19 accepted by the owner without the two-hour observation (see Proof).
