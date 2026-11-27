@@ -7,6 +7,10 @@
 - A Terraform pin that is inconsistent: the Dockerfile version differs from infra/.terraform-version,
   or infra/.terraform-sha256 lacks a well-formed hash for linux_amd64 or linux_arm64. A placeholder
   hash is a warning locally and an error when CI is set.
+- The worker-only secrets (`a1-url`, `a1-client-id`, `a1-client-secret`, `email-sender`): each must
+  be listed in the platform secret map with `worker` as its only reader, and no Terraform file of
+  the app layer may mention them (the worker reads them at execution time; a Cloud Run secret
+  reference without a version would break the deploy; #71).
 Comment lines are ignored, so a rule can be explained next to the code.
 """
 import os
@@ -28,6 +32,37 @@ def _scan(paths, rule, root):
             match = pattern.search(line)
             if match:
                 errors.append(f"{path.relative_to(root)}:{n}: {match.group(0)}: {message}")
+    return errors
+
+
+WORKER_ONLY_SECRETS = ("a1-url", "a1-client-id", "a1-client-secret", "email-sender")
+SECRET_ENTRY = re.compile(r'^\s*"([a-z0-9-]+)"\s*=\s*\[([^\]]*)\]')
+
+
+def _secret_errors(root):
+    secrets_file = root / "infra" / "platform" / "secrets.tf"
+    if not secrets_file.exists():
+        return []
+    readers = {}
+    for line in secrets_file.read_text(encoding="utf-8").splitlines():
+        if line.lstrip().startswith("#"):
+            continue
+        match = SECRET_ENTRY.match(line)
+        if match:
+            readers[match.group(1)] = re.findall(r'"([^"]+)"', match.group(2))
+    errors = []
+    for name in WORKER_ONLY_SECRETS:
+        if name not in readers:
+            errors.append(f"infra/platform/secrets.tf: secret {name} is missing")
+        elif readers[name] != ["worker"]:
+            errors.append(f"infra/platform/secrets.tf: {name} must be readable by worker only, not {readers[name]}")
+    for path in sorted((root / "infra" / "app").glob("*.tf")):
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if line.lstrip().startswith("#"):
+                continue
+            for name in WORKER_ONLY_SECRETS:
+                if f'"{name}"' in line:
+                    errors.append(f"{path.relative_to(root)}:{n}: {name} must not be referenced by Cloud Run; the worker reads it at execution time")
     return errors
 
 
@@ -86,7 +121,7 @@ def find_errors(root, ci=False):
     root = pathlib.Path(root)
     workflows = [p for ext in ("yml", "yaml") for p in (root / ".github").rglob(f"*.{ext}")]
     terraform = list((root / "infra").rglob("*.tf"))
-    return _scan(workflows, WORKFLOW_RULE, root) + _scan(terraform, TERRAFORM_RULE, root) + _version_errors(root, ci)
+    return _scan(workflows, WORKFLOW_RULE, root) + _scan(terraform, TERRAFORM_RULE, root) + _version_errors(root, ci) + _secret_errors(root)
 
 
 def main():

@@ -82,7 +82,7 @@ The owner's IAP access (`roles/iap.httpsResourceAccessor`) and the IAP service a
 
 ### 5. Secret values
 
-The platform layer creates five empty secrets. Add a value only when a slice needs it, with `gcloud`, so it never passes through the repo, CI or any state:
+The platform layer creates six empty secrets. Add a value only when a slice needs it, with `gcloud`, so it never passes through the repo, CI or any state:
 
 ```bash
 printf '%s' '<value>' | gcloud secrets versions add <secret-id> --data-file=- --project=job-finder-<suffix>
@@ -91,9 +91,14 @@ printf '%s' '<value>' | gcloud secrets versions add <secret-id> --data-file=- --
 | Secret | Value | Needed from |
 |---|---|---|
 | `owner-email` | your Google account, lower case | #70 (the app's owner check) |
-| `a1-client-id`, `a1-client-secret` | A-1 service token (Cloudflare Access) | the A-1 slice |
+| `a1-url` | The A-1 endpoint URL (ends with `/mcp`). The hostname stays out of the repo, Terraform and CI logs | #71 (the A-1 check) |
+| `a1-client-id`, `a1-client-secret` | A-1 service token (Cloudflare Access) | #71 (the A-1 check) |
 | `openai-api-key` | OpenAI API key | the first LLM step |
-| `email-sender` | JSON with the sender's OAuth client id, client secret, refresh token and sender address (ADR-0010) | email delivery |
+| `email-sender` | JSON `{"client_id": "…", "client_secret": "…", "refresh_token": "…", "sender": "<the dedicated Gmail address>"}` (ADR-0010) | #71 (the test email) |
+
+The worker reads `a1-url`, `a1-client-id`, `a1-client-secret` and `email-sender` through the Secret Manager API when a run needs them; no Cloud Run resource references them, so the deploy does not wait for these values. Until a value exists, the matching check on the Settings page reports *not configured*.
+
+**Order after the merge of #71** (the platform change is in that PR, so it cannot be applied before the merge): merge, then re-run step 3 from `main` (the new `a1-url` container and `roles/datastore.indexViewer` for `app-plan`), then add the values above, then press "Check A-1" and "Send test email" on the Settings page. Until `indexViewer` is applied, `app-plan` and drift runs fail with permission denied on the new Firestore indexes.
 
 Rotation (NFR-S5): add a new version, then destroy the old one, so the free six active versions are not exceeded.
 

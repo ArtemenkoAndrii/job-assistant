@@ -2,8 +2,12 @@
 # with client id, client secret, refresh token and sender address). The values are added by the
 # owner with `gcloud secrets versions add`, so they never pass through the repo, CI or any state.
 # There is deliberately no google_secret_manager_secret_version here.
+# `a1-url`, `a1-client-id`, `a1-client-secret` and `email-sender` are read by the worker at execution
+# time through the Secret Manager API, never injected into Cloud Run (a job update that references a
+# secret without a version is rejected). scripts/check_infra.py keeps them worker-only (#71).
 locals {
   secrets = {
+    "a1-url"           = ["worker"]
     "a1-client-id"     = ["worker"]
     "a1-client-secret" = ["worker"]
     "openai-api-key"   = ["web", "worker"]

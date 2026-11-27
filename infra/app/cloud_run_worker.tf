@@ -18,6 +18,16 @@ resource "google_cloud_run_v2_job" "worker" {
         command = ["python"]
         args    = ["-m", "jobfinder.worker"]
 
+        # No secret references: the worker reads its secrets at execution time (#71).
+        env {
+          name  = "JOBFINDER_ENVIRONMENT"
+          value = "production"
+        }
+        env {
+          name  = "JOBFINDER_PROJECT_NUMBER"
+          value = var.project_number
+        }
+
         resources {
           limits = {
             cpu    = "1"

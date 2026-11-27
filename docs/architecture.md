@@ -58,7 +58,7 @@ flowchart TB
         worker["<b>jobfinder-worker</b><br/>Cloud Run job, ≤ 2 h, no retries<br/>one run per execution"]
         fs[("<b>Firestore</b><br/>settings, profiles, runs, vacancies,<br/>dossiers, packages, applied,<br/>cost ledger, counters, run lease")]
         gcs[("<b>Cloud Storage</b><br/>uploads, resume PDFs")]
-        sm[["<b>Secret Manager</b><br/>A-1 token, OpenAI key,<br/>email sender, owner email"]]
+        sm[["<b>Secret Manager</b><br/>A-1 URL and token, OpenAI key,<br/>email sender, owner email"]]
     end
 
     a1["A-1"]
@@ -88,7 +88,7 @@ flowchart TB
 | **Run queue** | No separate service: `runs` documents with status `queued` plus the lease document `locks/worker` | Oldest queued run first; no duplicate queueing per profile; the kill switch drops queued runs (UC-14) |
 | **Firestore** | All structured data | TTL on `expire_at`; planned indexes; daily backups kept 7 days; deny-all client rules (ADR-0007) |
 | **Cloud Storage** | Uploads and generated PDFs | Private; `packages/pending/` deleted after 90 days, `packages/applied/` kept; soft delete 7 days |
-| **Secret Manager** | A-1 id and secret, OpenAI key, `email-sender`, owner email | Values added by the owner, never in the repo, CI or Terraform state (ADR-0009); `worker` reads A-1, OpenAI and email sender; `web` reads OpenAI and the owner email (ADR-0006, ADR-0008, ADR-0010) |
+| **Secret Manager** | A-1 URL, id and secret, OpenAI key, `email-sender`, owner email | Values added by the owner, never in the repo, CI or Terraform state (ADR-0009); `worker` reads A-1, OpenAI and email sender, through the Secret Manager API when a run needs them (not injected into Cloud Run, #71); `web` reads OpenAI and the owner email (ADR-0006, ADR-0008, ADR-0010) |
 
 ## 3. Application components
 
