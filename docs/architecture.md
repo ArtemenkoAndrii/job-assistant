@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Status** | v1: consolidates ADR-0004 to ADR-0011. Learnings from the walking skeleton (#22) are added when it is done (#23) |
-| **Date** | 2026-11-25 |
+| **Status** | v1: consolidates ADR-0004 to ADR-0013 and the learnings from the walking skeleton (#22, §10) |
+| **Date** | 2026-11-28 |
 | **Issues** | #14 (draft), #23 (v1) |
 | **Inputs** | [Vision](vision.md), [use cases](requirements/use-cases.md), [NFR](requirements/nfr.md), [ADRs](adr/README.md); spikes: [browser flows](spikes/browser-flows.md), [LLM cost](spikes/llm-cost.md), [application channels](spikes/application-channels.md) |
 
@@ -82,7 +82,7 @@ flowchart TB
 
 | Container | Responsibility | Key rules |
 |---|---|---|
-| **jobfinder-web** (Cloud Run service) | All pages and API (UC-01–05, 10–15); resume a blocked run, re-enable a board (UC-08). Interactive LLM steps outside the run queue: extraction preview (UC-03), regenerate answers (UC-11 A1), regenerate and re-review a resume (UC-12) | IAP in front; the app verifies the IAP JWT and the owner email on every route except `/health` (ADR-0008). CSRF by `Origin` check. Scales to zero; cold start ≤ 10 s (NFR-A1) |
+| **jobfinder-web** (Cloud Run service) | All pages and API (UC-01–05, 10–15); resume a blocked run, re-enable a board (UC-08). Interactive LLM steps outside the run queue: extraction preview (UC-03), regenerate answers (UC-11 A1), regenerate and re-review a resume (UC-12) | IAP in front; the app verifies the IAP JWT and the owner email on every route except `/health` (ADR-0008). CSRF: `Origin` must equal `https://` + the request's `Host` (ADR-0013). Starts the worker through the Cloud Run Admin API. Scales to zero; cold start ≤ 10 s (NFR-A1; measured 4.0 s) |
 | **jobfinder-worker** (Cloud Run job) | Executes one queued run end to end (UC-07), then notifies | Takes the run lease, renews it, stops if it is lost; one run per execution, so every run fits the 2 h timeout (ADR-0007). The only workload with the A-1 token |
 | **Cloud Scheduler** | Starts the worker every hour at :30 | The worker decides which profiles are due (NFR-R1). A blocked run waits for its next slot, so there is no retry loop (NFR-A2) |
 | **Run queue** | No separate service: `runs` documents with status `queued` plus the lease document `locks/worker` | Oldest queued run first; no duplicate queueing per profile; the kill switch drops queued runs (UC-14) |
@@ -193,10 +193,10 @@ The collections, indexes and retention rules are in [ADR-0007](adr/0007-data-sto
 
 | Concern | Approach | ADR / NFR |
 |---|---|---|
-| Access | IAP plus the app's own JWT and owner-email check; fail closed; dev-mode identity refused on Cloud Run | 0008, NFR-S1 |
+| Access | IAP plus the app's own JWT and owner-email check; fail closed; dev-mode identity refused on Cloud Run; `Origin == Host` on state-changing requests | 0008, 0013, NFR-S1 |
 | Prompt injection | Readers (browsing agents) have only read tools and no personal data; writers (tailor, review) have no browser; typed outputs; URL provenance | 0011 §7, NFR-S6 |
 | Secrets | Secret Manager only; values added by the owner; each workload reads only its own | 0006, 0009, NFR-S2 |
-| Deployment boundary | Whoever deploys code acts as the app; only reviewed code on `main` deploys; CI has no project-level IAM rights (only invoker bindings on the service and the job) | 0003, 0009 |
+| Deployment boundary | Whoever deploys code acts as the app; only reviewed code on `main` deploys; CI has no project IAM rights except the Cloud Run IAM-policy permissions it needs for the invoker bindings (project level, because Cloud Run has no resource-name IAM conditions) | 0003, 0009, 0012 |
 | Personal data | Minimal storage; TTL and explicit deletion; no resume in logs, traces or notifications | 0007, 0010, NFR-P1–P6 |
 | Cost | Hosting ≈ $0–0.20/month; LLM cap $10 with a budget guard; the LLM budget, not hosting, limits run frequency | 0004, 0006, NFR-C1–C5 |
 | Being a polite guest | Limits, pace, stop triggers and exit criteria in `BrowserGateway` | 0011, NFR-B1–B7 |
@@ -218,8 +218,8 @@ flowchart LR
   - `infra/platform`: IAM, data, secrets, WIF, budget. Applied by the owner from Cloud Shell; its state is owner-only.
   - `infra/app`: Cloud Run service and job, scheduler, indexes. Applied by CI on `main` through WIF.
 - **CI identities:**
-  - `app-plan`: read-only, for PR plans.
-  - `deployer`: only `deploy.yml` on a push to `main`. No project-level IAM, data or secret rights; resource IAM on the service and the job only.
+  - `app-plan`: read-only, for PR plans and the weekly drift check (viewer roles plus a custom index-viewer role).
+  - `deployer`: only `deploy.yml` on a push to `main`. No data, secret or billing rights; the only IAM right is setting the IAM policy of Cloud Run resources (ADR-0012).
 - **Outside Terraform** (manual steps, recorded in the runbook):
   - creating the project, linking billing and adding Firebase (ADR-0009);
   - the email sender's Personal-mode project (ADR-0010);
@@ -241,14 +241,33 @@ The steps, in order, are in [docs/runbooks/bootstrap.md](runbooks/bootstrap.md).
 | Infrastructure | Terraform platform/app layers, WIF, one environment | [0009](adr/0009-infrastructure-as-code.md) |
 | Notifications | `Notifier` with channels; email via a dedicated Gmail, Personal mode | [0010](adr/0010-email-delivery.md) |
 | Browser policy | Allowlists, limits, stop triggers per board, exit criteria | [0011](adr/0011-browser-automation-policy.md) |
+| Deployer's Cloud Run IAM right | Project level, without a condition (supersedes that scope in ADR-0009) | [0012](adr/0012-deployer-cloud-run-iam.md) |
+| CSRF Origin rule | `Origin == "https://" + Host`, no configured list (supersedes ADR-0008 §5) | [0013](adr/0013-origin-check.md) |
 
 ## 9. Open items
 
 | Item | Where |
 |---|---|
 | A-1 validation: one long session without blank pages, LinkedIn filters with allowed clicks only, Glassdoor dialog, stop patterns | ADR-0011 §10, before #27 |
-| The Personal-mode refresh token still works 8+ days after issue | #22 |
-| Cold start and image size of the web service; worker CPU and memory sizing | #22 (ADR-0006) |
+| The Personal-mode refresh token still works 7+ days after issue (press "Send test email" after 2026-12-05) | ADR-0010 |
+| Worker CPU and memory sizing (a job execution takes about 30 s to start) | first real runs (ADR-0006) |
+| Log the HTTP status of Gmail and Secret Manager failures; give a secret read failure its own reason | #71 follow-up |
 | Recorded pages, fake MCP server, evals including injected vacancy text | #24, #25 |
 | Review of the browsing approach against real runs | #38 |
-| Skeleton learnings | #23, after #22 |
+
+## 10. Learnings from the walking skeleton
+
+The skeleton (#69, #70, #71) put every container and external link on the deployed system. What it changed or taught:
+
+| Area | Learning | Result |
+|---|---|---|
+| Cloud Run | Paths ending in `z` (such as `/healthz`) are answered by Google's front end with a 404 and never reach the container | The health route is `/health` |
+| Cloud Run IAM | Cloud Run does not support resource-name IAM conditions; a condition on an unsupported attribute grants nothing | [ADR-0012](adr/0012-deployer-cloud-run-iam.md) |
+| Cloud Run secrets | A service or job that references a secret without a version is rejected at deploy | The worker reads its secrets at execution time through the Secret Manager API; a missing value is reported as *not configured* |
+| Cloud Run URLs | A service has a deterministic URL and a hash URL; the owner uses the hash URL, known only after the first deploy | [ADR-0013](adr/0013-origin-check.md): `Origin == Host` |
+| IAM roles | Account IDs need 6–30 characters (`web` became `web-app`); `roles/datastore.indexViewer` does not exist (custom role); a new custom role can take a minute to be usable | Fixed in `infra/platform`; the runbook says to re-apply on propagation errors |
+| OAuth / IAP | Publishing the IAP OAuth app needs a homepage and privacy policy on a verified domain | The app stays in *Testing* with the owner as test user; IAP's browser session is not affected |
+| Gmail sender | Personal mode has its own onboarding page (the usual wizard offers only Internal and External) and creates a new project each time; the Gmail API must be enabled in the project that holds the client; the OAuth Playground needs the app's own credentials | Runbook section for the `email-sender` value |
+| Terraform bootstrap | Cloud Shell has no Terraform; `init -backend=false` does not allow plan or apply; Firestore TTL fields take minutes each; outputs recorded at apply time made drift fail | Pinned installer and a local-backend override in the runbook; no volatile outputs |
+| Public CI logs | Plan and `gcloud` output print identifiers | The bootstrap guard masks the project ID, number and state bucket; secrets never pass through Terraform |
+| Measurements | Web cold start 4.0 s, image 58 MB; the queue, lease and Firestore transactions worked on the first real run | NFR-A1 met |
