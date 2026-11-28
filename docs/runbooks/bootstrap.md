@@ -100,6 +100,34 @@ The worker reads `a1-url`, `a1-client-id`, `a1-client-secret` and `email-sender`
 
 **Order after the merge of #71** (the platform change is in that PR, so it cannot be applied before the merge): merge, then re-run step 3 from `main` (the new `a1-url` container and the index viewer custom role for `app-plan`), then add the values above, then press "Check A-1" and "Send test email" on the Settings page. Until `indexViewer` is applied, `app-plan` and drift runs fail with permission denied on the new Firestore indexes.
 
+#### The `email-sender` value (ADR-0010)
+
+Done once, in a private browser window signed in as the **dedicated sender account** (never your own account):
+
+1. Create the Gmail account, turn on 2-step verification and add a recovery phone or backup codes (Google may ask to verify with a passkey otherwise).
+2. Open the Personal mode onboarding page `https://console.cloud.google.com/auth/overview/personal`. The usual consent-screen wizard offers only Internal and External, and a project's user type cannot be changed later, so do not create the client there. The page creates a project `personal-mode-app` (a new one each time it is opened: use one and shut the others down) and a client. Choose **Web application**; copy the client ID and secret at once (the secret is shown only once).
+3. In **that** project: *APIs & Services → Library → Gmail API → Enable*. Without it the test email fails with "Gmail could not send the message". The client ID starts with the project number, which tells you which project holds it.
+4. On the client, add the redirect URI `https://developers.google.com/oauthplayground`.
+5. In the OAuth Playground: gear icon → **Use your own OAuth credentials** (client ID and secret; without them the token is issued to the Playground's client and revoked after 24 h) → scope `https://www.googleapis.com/auth/gmail.send` → *Authorize APIs* as the sender → *Exchange authorization code for tokens* → copy the refresh token.
+6. Add the JSON without it touching the shell history:
+
+```bash
+python3 -c '
+import getpass, json, sys
+d = {k: getpass.getpass(k + ": ") for k in ("client_id", "client_secret", "refresh_token", "sender")}
+sys.stdout.write(json.dumps(d))
+' | gcloud secrets versions add email-sender --data-file=- --project=job-finder-<suffix>
+```
+
+7. Press "Send test email" on Settings; mark the first message *not spam* if needed. Rename the project to `jobfinder-mail` so its purpose stays clear.
+
+For the other secrets, `read -rsp` keeps the value off the screen and out of the history:
+
+```bash
+add() { read -rsp "$1: " v; echo; printf '%s' "$v" | gcloud secrets versions add "$1" --data-file=- --project=job-finder-<suffix>; unset v; }
+add a1-url; add a1-client-id; add a1-client-secret
+```
+
 Rotation (NFR-S5): add a new version, then destroy the old one, so the free six active versions are not exceeded.
 
 ### 6. GitHub: two Environments and their variables
