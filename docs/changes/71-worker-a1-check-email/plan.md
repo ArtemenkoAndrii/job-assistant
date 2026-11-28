@@ -93,7 +93,7 @@ ADRs are not edited. The use case file is unchanged unless wording diverges.
 | AC16 | `test_worker.py`, `test_email_channel.py`: `caplog` and stored documents contain none of the fake secrets, address, host or text |
 | AC17 | `test_card_template.py`: states at 360 px rules, 44 px buttons, text status |
 | AC18 | `scripts/check_infra.py` (run by `scripts/lint.sh`) with `tests/scripts/test_check_infra.py`: readers of the four secrets are `worker` only; no reference to them in any `infra/app` file; `terraform fmt -check` here, `terraform validate` by CI `app-plan` |
-| AC19 | Post-deploy screenshots and the arrived message, recorded in a follow-up Proof PR (pending until then) |
+| AC19 | **Done on the deployed system, 2026-11-28** (owner): "Check A-1" → *Passed. Snapshot received, 39398 characters* (09:48 UTC); "Send test email" → *Message sent* (08:45 UTC) and the message arrived in the owner's inbox. Settings card screenshot at desktop width shown to the reviewer; no 360 px screenshot recorded. The first email attempt failed with `email_send_failed` because the Gmail API was not enabled in the sender's project (fixed by the owner; see Divergence log). First real exercise of the Firestore queue, lease and transactions. |
 | AC20 | `conftest.py` socket guard + `test_socket_guard.py`; full `scripts/test.sh` output |
 | AC21 | `test_secret_reader.py`, `test_worker.py`: missing secret/version → `a1_not_configured` / `email_not_configured`, gateway never created |
 | AC22 | `test_card_template.py`, `test_routes.py`: htmx from `/static/htmx.min.js`, no external host; unauthenticated request refused |
@@ -114,4 +114,6 @@ Commands: `scripts/build.sh`, `scripts/test.sh`, `scripts/lint.sh`, `scripts/aud
 - **Retention:** run records 30 days; `page_loads` documents 365 days (ADR-0007: 12 months).
 - **Not run in this session** (sandbox limits): `terraform init`/`validate` (provider download blocked) and `scripts/audit.sh` (read-only cache directories). `terraform fmt -check` passes on both layers; the CI `app-plan` validates the app layer.
 - **Index viewer for `app-plan` (found in the owner's platform apply):** `roles/datastore.indexViewer` does not exist in GCP ("not supported for this resource"); ADR-0009's "datastore index viewer" is implemented as a custom role `indexViewer` with `datastore.indexes.get` and `datastore.indexes.list` only (no data access), as for `stateLister`.
+- **First email attempt:** `email_send_failed` because the Gmail API was not enabled in the sender's Personal-mode project (the Personal-mode onboarding page creates a new `personal-mode-app` project each time it is opened). Fixed by enabling the API in the project that holds the client. Follow-up: log the HTTP status of Gmail and Secret Manager failures and give a secret read failure its own reason, so such cases are told apart from the logs.
+- **Index viewer** for `app-plan` became a custom role (#81).
 
